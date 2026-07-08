@@ -1,0 +1,7 @@
+.game-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 96px rgba(0, 0, 0, 0.86);
+}

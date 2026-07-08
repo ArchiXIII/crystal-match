@@ -1,0 +1,11 @@
+*
+!.gitignore
+!index.html
+!css/
+!css/**
+!js/
+!js/**
+!sounds/
+!sounds/**
+!sprites/
+!sprites/**

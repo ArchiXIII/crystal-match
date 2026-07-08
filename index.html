@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#050506">
+  <title>Crystal Match</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/ui.css">
+</head>
+<body>
+  <main class="game-shell" aria-label="Crystal Match">
+    <canvas id="gameCanvas" draggable="false"></canvas>
+  </main>
+
+  <script src="/sdk.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/platform.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/game-effects.js"></script>
+  <script src="js/game-economy.js"></script>
+  <script src="js/game-goals.js"></script>
+  <script src="js/game-level-mode.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/render-board.js"></script>
+  <script src="js/render-ui.js"></script>
+  <script src="js/render-hud.js"></script>
+  <script src="js/render-goals-boosters.js"></script>
+  <script src="js/render-profile.js"></script>
+  <script src="js/render-gameover.js"></script>
+  <script src="js/render-leaderboard.js"></script>
+  <script src="js/render-xp-leaderboard.js"></script>
+  <script src="js/render-shop.js"></script>
+  <script src="js/render-level-select.js"></script>
+  <script src="js/render-menu.js"></script>
+  <script src="js/input.js"></script>
+  <script>
+    CrystalMatchPlatform.boot();
+  </script>
+</body>
+</html>
