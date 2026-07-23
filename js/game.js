@@ -43,17 +43,17 @@
       this.serverBackedProgress = !!options.serverBackedProgress;
       this.coins = Number.isFinite(options.savedCoins)
         ? Math.floor(options.savedCoins)
-        : (this.serverBackedProgress ? this.startingCoins : this.loadCoins(this.startingCoins));
+        : this.loadCoins(this.startingCoins);
       this.coinSyncBase = this.coins;
       this.initialCoinCloudSave = !!options.initialCoinCloudSave;
-      if (this.coins < this.startingCoins && !Number.isFinite(options.savedCoins) && !this.serverBackedProgress) {
+      if (this.coins < this.startingCoins && !Number.isFinite(options.savedCoins)) {
         this.coins = this.startingCoins;
       }
       this.rankXp = Number.isFinite(options.savedRankXp)
         ? Math.floor(options.savedRankXp)
-        : (this.serverBackedProgress ? 0 : this.loadRankXp());
-      this.dailyBonus = this.normalizeDailyBonus(options.savedDailyBonus || (this.serverBackedProgress ? {} : this.loadDailyBonus()));
-      this.adBonus = this.normalizeAdBonus(options.savedAdBonus || (this.serverBackedProgress ? {} : this.loadAdBonus()));
+        : this.loadRankXp();
+      this.dailyBonus = this.normalizeDailyBonus(options.savedDailyBonus || this.loadDailyBonus());
+      this.adBonus = this.normalizeAdBonus(options.savedAdBonus || this.loadAdBonus());
       this.displayCoins = this.coins;
       this.saveCoins({ cloud: this.initialCoinCloudSave, initial: true, immediate: this.initialCoinCloudSave });
       this.saveRankXp();
@@ -107,7 +107,7 @@
       this.levelContinueAdPending = false;
       this.levelSurrendered = false;
       this.nextLevelAdPending = false;
-      const levelProgress = this.normalizeLevelProgress(options.savedLevelProgress || (this.serverBackedProgress ? { highestUnlockedLevel: 1, stars: {}, chapterTrophies: {} } : this.loadLevelProgress()));
+      const levelProgress = this.normalizeLevelProgress(options.savedLevelProgress || this.loadLevelProgress());
       this.highestUnlockedLevel = levelProgress.highestUnlockedLevel;
       this.levelStars = levelProgress.stars;
       this.levelChapterTrophies = levelProgress.chapterTrophies || {};
@@ -397,7 +397,7 @@
     awardRankXp(amount) {
       if (!Number.isFinite(amount) || amount <= 0) return;
       this.rankXp += Math.floor(amount);
-      this.saveRankXp();
+      this.saveRankXp(true);
     }
 
     addScore(amount) {

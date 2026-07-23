@@ -47,6 +47,7 @@
       this.bindInteractionGuards();
       this.bindBackButtonGuard();
       await this.initYandex();
+      this.ensureStickyBanner();
       this.lang = this.detectLanguage();
       if (window.CrystalMatchI18n) window.CrystalMatchI18n.setLanguage(this.lang);
       this.notifyGameReady();
@@ -72,9 +73,9 @@
         audio: this.audio,
         saveCoins: (coins, meta) => this.saveCloudCoins(coins, meta),
         saveRankXp: (rankXp, force) => this.saveCloudRankXp(rankXp, force),
-        saveDailyBonus: (dailyBonus) => this.saveCloudDailyBonus(dailyBonus),
-        saveAdBonus: (adBonus) => this.saveCloudAdBonus(adBonus),
-        saveLevelProgress: (progress) => this.saveCloudLevelProgress(progress),
+        saveDailyBonus: (dailyBonus, meta) => this.saveCloudDailyBonus(dailyBonus, meta),
+        saveAdBonus: (adBonus, meta) => this.saveCloudAdBonus(adBonus, meta),
+        saveLevelProgress: (progress, meta) => this.saveCloudLevelProgress(progress, meta),
         submitScore: (score) => this.submitLeaderboardScore(score),
         submitStars: (stars) => this.submitStarsLeaderboard(stars),
         openLeaderboard: (type) => this.openLeaderboard(type),
@@ -110,12 +111,14 @@
       window.addEventListener('focus', () => {
         this.resumeAudioFromSystem();
         this.refreshCloudCoins();
+        this.ensureStickyBanner();
       }, { passive: true });
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) this.pauseAudioForSystem();
         else {
           this.resumeAudioFromSystem();
           this.refreshCloudCoins();
+          this.ensureStickyBanner();
         }
       }, { passive: true });
       this.bindYandexPauseEvents();
@@ -190,7 +193,10 @@
       if (!this.ysdk || !this.ysdk.on) return;
       try {
         this.ysdk.on('game_api_pause', () => this.pauseAudioForSystem());
-        this.ysdk.on('game_api_resume', () => this.resumeAudioFromSystem());
+        this.ysdk.on('game_api_resume', () => {
+          this.resumeAudioFromSystem();
+          this.ensureStickyBanner();
+        });
       } catch (error) {}
     },
 
@@ -208,6 +214,22 @@
         this.ysdk = await window.YaGames.init();
       } catch (error) {
         this.ysdk = null;
+      }
+    },
+
+    async ensureStickyBanner() {
+      const adv = this.ysdk && this.ysdk.adv;
+      if (!adv || !adv.showBannerAdv) return false;
+      try {
+        if (adv.getBannerAdvStatus) {
+          const status = await adv.getBannerAdvStatus();
+          if (status && status.stickyAdvIsShowing) return true;
+          if (status && status.reason === 'ADV_IS_NOT_CONNECTED') return false;
+        }
+        const result = await adv.showBannerAdv();
+        return !!(result && result.stickyAdvIsShowing);
+      } catch (error) {
+        return false;
       }
     },
 
@@ -237,7 +259,7 @@
     },
 
     isServerBackedPlayer() {
-      return !!(this.player && this.player.getData && this.player.setData && this.playerMode !== 'lite');
+      return !!(this.player && this.player.getData && this.player.setData);
     },
 
     detectLanguage() {
@@ -270,18 +292,8 @@
     async loadCloudProgress() {
       if (!this.isServerBackedPlayer()) return {};
       try {
-        const data = await this.player.getData(['coins', 'rankXp', 'dailyBonus', 'adBonus', 'levelProgress', 'coinPurchaseTokens']);
-        const result = { cloudDataLoaded: true };
-        if (!data) return result;
-        const coins = Number(data && data.coins);
-        const rankXp = Number(data && data.rankXp);
-        if (Number.isFinite(coins) && coins >= 0) result.coins = Math.floor(coins);
-        if (Number.isFinite(rankXp) && rankXp >= 0) result.rankXp = Math.floor(rankXp);
-        if (data.dailyBonus && typeof data.dailyBonus === 'object') result.dailyBonus = data.dailyBonus;
-        if (data.adBonus && typeof data.adBonus === 'object') result.adBonus = data.adBonus;
-        if (data.levelProgress && typeof data.levelProgress === 'object') result.levelProgress = data.levelProgress;
-        if (Array.isArray(data.coinPurchaseTokens)) result.coinPurchaseTokens = data.coinPurchaseTokens.map((token) => String(token)).filter(Boolean).slice(-50);
-        return result;
+        const data = await this.player.getData(['crystalProgress']);
+        return this.normalizeCloudProgress(data);
       } catch (error) {
         return {};
       }
@@ -303,6 +315,97 @@
       } catch (error) {}
     },
 
+    normalizeDailyBonusForCloud(value) {
+      const source = value && typeof value === 'object' ? value : {};
+      return {
+        streak: Math.max(0, Math.floor(Number(source.streak) || 0)),
+        lastClaimDate: String(source.lastClaimDate || ''),
+        adClaimedDate: String(source.adClaimedDate || '')
+      };
+    },
+
+    normalizeAdBonusForCloud(value) {
+      const source = value && typeof value === 'object' ? value : {};
+      return {
+        lastClaimAt: Math.max(0, Math.floor(Number(source.lastClaimAt) || 0))
+      };
+    },
+
+    normalizeLevelProgressForCloud(value) {
+      const source = value && typeof value === 'object' ? value : {};
+      const stars = {};
+      const rawStars = source.stars && typeof source.stars === 'object' ? source.stars : {};
+      Object.keys(rawStars).forEach((key) => {
+        const level = Math.max(1, Math.floor(Number(key) || 0));
+        const score = Math.max(0, Math.min(3, Math.floor(Number(rawStars[key]) || 0)));
+        if (level > 0 && score > 0) stars[level] = score;
+      });
+      const chapterTrophies = {};
+      const rawTrophies = source.chapterTrophies && typeof source.chapterTrophies === 'object' ? source.chapterTrophies : {};
+      Object.keys(rawTrophies).forEach((key) => {
+        const chapter = Math.max(0, Math.floor(Number(key) || 0));
+        if (rawTrophies[key]) chapterTrophies[chapter] = true;
+      });
+      return {
+        highestUnlockedLevel: Math.max(1, Math.floor(Number(source.highestUnlockedLevel) || 1)),
+        stars,
+        chapterTrophies
+      };
+    },
+
+    normalizePurchaseTokens(value) {
+      return Array.isArray(value) ? value.map((token) => String(token)).filter(Boolean).slice(-50) : [];
+    },
+
+    normalizeCloudProgress(data) {
+      const result = { cloudDataLoaded: true };
+      const root = data && typeof data === 'object' && data.crystalProgress && typeof data.crystalProgress === 'object'
+        ? data.crystalProgress
+        : {};
+      const coins = Number(root.coins);
+      const rankXp = Number(root.rankXp);
+      if (Number.isFinite(coins) && coins >= 0) result.coins = Math.floor(coins);
+      if (Number.isFinite(rankXp) && rankXp >= 0) result.rankXp = Math.floor(rankXp);
+      if (root.dailyBonus && typeof root.dailyBonus === 'object') result.dailyBonus = this.normalizeDailyBonusForCloud(root.dailyBonus);
+      if (root.adBonus && typeof root.adBonus === 'object') result.adBonus = this.normalizeAdBonusForCloud(root.adBonus);
+      if (root.levelProgress && typeof root.levelProgress === 'object') result.levelProgress = this.normalizeLevelProgressForCloud(root.levelProgress);
+      result.coinPurchaseTokens = this.normalizePurchaseTokens(root.coinPurchaseTokens);
+      return result;
+    },
+
+    buildCloudProgressPayload(overrides) {
+      const game = this.game;
+      const source = overrides && typeof overrides === 'object' ? overrides : {};
+      const coinsSource = Object.prototype.hasOwnProperty.call(source, 'coins') ? source.coins : (game ? game.coins : 0);
+      const rankXpSource = Object.prototype.hasOwnProperty.call(source, 'rankXp') ? source.rankXp : (game ? game.rankXp : 0);
+      const dailySource = Object.prototype.hasOwnProperty.call(source, 'dailyBonus')
+        ? source.dailyBonus
+        : (game ? game.dailyBonus : null);
+      const adSource = Object.prototype.hasOwnProperty.call(source, 'adBonus')
+        ? source.adBonus
+        : (game ? game.adBonus : null);
+      let levelSource = Object.prototype.hasOwnProperty.call(source, 'levelProgress') ? source.levelProgress : null;
+      if (!levelSource && game) {
+        levelSource = {
+          highestUnlockedLevel: game.highestUnlockedLevel,
+          stars: game.levelStars,
+          chapterTrophies: game.levelChapterTrophies
+        };
+      }
+      const tokensSource = Object.prototype.hasOwnProperty.call(source, 'coinPurchaseTokens')
+        ? source.coinPurchaseTokens
+        : this.processedPurchaseTokens;
+      const progress = {
+        coins: Math.max(0, Math.floor(Number(coinsSource) || 0)),
+        rankXp: Math.max(0, Math.floor(Number(rankXpSource) || 0)),
+        dailyBonus: this.normalizeDailyBonusForCloud(dailySource),
+        adBonus: this.normalizeAdBonusForCloud(adSource),
+        levelProgress: this.normalizeLevelProgressForCloud(levelSource),
+        coinPurchaseTokens: this.normalizePurchaseTokens(tokensSource)
+      };
+      return { crystalProgress: progress };
+    },
+
     saveCloudCoins(coins, meta) {
       if (!this.isServerBackedPlayer()) return;
       const value = Math.max(0, Math.floor(coins));
@@ -321,14 +424,11 @@
     async readCloudCoinsAndTokens() {
       if (!this.isServerBackedPlayer()) return {};
       try {
-        const data = await this.player.getData(['coins', 'coinPurchaseTokens']);
-        const coins = Number(data && data.coins);
-        const tokens = Array.isArray(data && data.coinPurchaseTokens)
-          ? data.coinPurchaseTokens.map((token) => String(token)).filter(Boolean).slice(-50)
-          : [];
+        const data = await this.player.getData(['crystalProgress']);
+        const progress = this.normalizeCloudProgress(data);
         return {
-          coins: Number.isFinite(coins) && coins >= 0 ? Math.floor(coins) : null,
-          coinPurchaseTokens: tokens
+          coins: Number.isFinite(progress.coins) ? progress.coins : null,
+          coinPurchaseTokens: progress.coinPurchaseTokens || []
         };
       } catch (error) {
         return {};
@@ -342,8 +442,9 @@
       this.pendingCoinSave = null;
       this.pendingCoinDelta = 0;
       this.pendingCoinForceValue = false;
+      const payload = this.buildCloudProgressPayload({ coins: nextCoins });
       try {
-        await this.player.setData({ coins: nextCoins }, true);
+        await this.player.setData(payload, true);
         this.applySyncedCoins(nextCoins);
       } catch (error) {
         this.pendingCoinSave = nextCoins;
@@ -368,11 +469,40 @@
     },
 
     async refreshCloudCoins() {
-      if (!this.isServerBackedPlayer() || !this.game || this.pendingCoinSave !== null) return;
-      const cloud = await this.readCloudCoinsAndTokens();
-      if (!Number.isFinite(cloud.coins)) return;
-      if (Math.floor(this.game.coins || 0) === cloud.coins) return;
-      this.applySyncedCoins(cloud.coins);
+      if (!this.isServerBackedPlayer() || !this.game) return;
+      const cloud = await this.loadCloudProgress();
+      if (!cloud || !cloud.cloudDataLoaded) return;
+      if (this.pendingCoinSave === null && Number.isFinite(cloud.coins) && Math.floor(this.game.coins || 0) !== cloud.coins) {
+        this.applySyncedCoins(cloud.coins);
+      }
+      if (this.pendingRankXpSave === null && Number.isFinite(cloud.rankXp)) {
+        const nextXp = Math.max(0, Math.floor(cloud.rankXp));
+        if (nextXp !== Math.max(0, Math.floor(this.game.rankXp || 0))) {
+          this.game.rankXp = nextXp;
+          try {
+            window.localStorage.setItem(this.game.rankXpStorageKey, String(nextXp));
+          } catch (error) {}
+        }
+      }
+      if (this.pendingDailyBonusSave === null && cloud.dailyBonus && typeof cloud.dailyBonus === 'object') {
+        this.game.dailyBonus = this.game.normalizeDailyBonus ? this.game.normalizeDailyBonus(cloud.dailyBonus) : cloud.dailyBonus;
+        this.game.saveDailyBonus({ cloud: false });
+      }
+      if (this.pendingAdBonusSave === null && cloud.adBonus && typeof cloud.adBonus === 'object') {
+        this.game.adBonus = this.game.normalizeAdBonus ? this.game.normalizeAdBonus(cloud.adBonus) : cloud.adBonus;
+        this.game.saveAdBonus({ cloud: false });
+      }
+      if (this.pendingLevelProgressSave === null && cloud.levelProgress && typeof cloud.levelProgress === 'object' && this.game.normalizeLevelProgress) {
+        const progress = this.game.normalizeLevelProgress(cloud.levelProgress);
+        this.game.highestUnlockedLevel = progress.highestUnlockedLevel;
+        this.game.levelStars = progress.stars;
+        this.game.levelChapterTrophies = progress.chapterTrophies || {};
+        this.game.saveLevelProgress({ cloud: false });
+      }
+      if (Array.isArray(cloud.coinPurchaseTokens)) {
+        this.processedPurchaseTokens = cloud.coinPurchaseTokens.slice(-50);
+        this.saveLocalPurchaseTokens();
+      }
     },
 
     saveCloudRankXp(rankXp, force) {
@@ -393,13 +523,15 @@
       if (!this.isServerBackedPlayer() || this.pendingRankXpSave === null) return Promise.resolve();
       window.clearTimeout(this.rankXpSaveTimer);
       const savedXp = this.pendingRankXpSave;
-      const payload = { rankXp: savedXp };
+      const payload = this.buildCloudProgressPayload({ rankXp: savedXp });
       this.pendingRankXpSave = null;
       this.submitXpLeaderboard(savedXp);
-      return this.player.setData(payload, true).catch(() => {});
+      return this.player.setData(payload, true).catch(() => {
+        this.pendingRankXpSave = savedXp;
+      });
     },
 
-    saveCloudDailyBonus(dailyBonus) {
+    saveCloudDailyBonus(dailyBonus, meta) {
       if (!this.isServerBackedPlayer()) return;
       const source = dailyBonus && typeof dailyBonus === 'object' ? dailyBonus : {};
       this.pendingDailyBonusSave = {
@@ -407,7 +539,12 @@
         lastClaimDate: String(source.lastClaimDate || ''),
         adClaimedDate: String(source.adClaimedDate || '')
       };
+      const info = meta && typeof meta === 'object' ? meta : {};
       window.clearTimeout(this.dailyBonusSaveTimer);
+      if (info.immediate) {
+        this.flushCloudDailyBonus();
+        return;
+      }
       this.dailyBonusSaveTimer = window.setTimeout(() => {
         this.flushCloudDailyBonus();
       }, 350);
@@ -416,18 +553,26 @@
     flushCloudDailyBonus() {
       if (!this.isServerBackedPlayer() || this.pendingDailyBonusSave === null) return;
       window.clearTimeout(this.dailyBonusSaveTimer);
-      const payload = { dailyBonus: this.pendingDailyBonusSave };
+      const savedDailyBonus = this.pendingDailyBonusSave;
+      const payload = this.buildCloudProgressPayload({ dailyBonus: savedDailyBonus });
       this.pendingDailyBonusSave = null;
-      this.player.setData(payload, true).catch(() => {});
+      this.player.setData(payload, true).catch(() => {
+        this.pendingDailyBonusSave = savedDailyBonus;
+      });
     },
 
-    saveCloudAdBonus(adBonus) {
+    saveCloudAdBonus(adBonus, meta) {
       if (!this.isServerBackedPlayer()) return;
       const source = adBonus && typeof adBonus === 'object' ? adBonus : {};
       this.pendingAdBonusSave = {
         lastClaimAt: Math.max(0, Math.floor(Number(source.lastClaimAt) || 0))
       };
+      const info = meta && typeof meta === 'object' ? meta : {};
       window.clearTimeout(this.adBonusSaveTimer);
+      if (info.immediate) {
+        this.flushCloudAdBonus();
+        return;
+      }
       this.adBonusSaveTimer = window.setTimeout(() => {
         this.flushCloudAdBonus();
       }, 350);
@@ -436,12 +581,15 @@
     flushCloudAdBonus() {
       if (!this.isServerBackedPlayer() || this.pendingAdBonusSave === null) return;
       window.clearTimeout(this.adBonusSaveTimer);
-      const payload = { adBonus: this.pendingAdBonusSave };
+      const savedAdBonus = this.pendingAdBonusSave;
+      const payload = this.buildCloudProgressPayload({ adBonus: savedAdBonus });
       this.pendingAdBonusSave = null;
-      this.player.setData(payload, true).catch(() => {});
+      this.player.setData(payload, true).catch(() => {
+        this.pendingAdBonusSave = savedAdBonus;
+      });
     },
 
-    saveCloudLevelProgress(progress) {
+    saveCloudLevelProgress(progress, meta) {
       if (!this.isServerBackedPlayer()) return;
       const source = progress && typeof progress === 'object' ? progress : {};
       const stars = {};
@@ -462,7 +610,12 @@
         stars,
         chapterTrophies
       };
+      const info = meta && typeof meta === 'object' ? meta : {};
       window.clearTimeout(this.levelProgressSaveTimer);
+      if (info.immediate) {
+        this.flushCloudLevelProgress();
+        return;
+      }
       this.levelProgressSaveTimer = window.setTimeout(() => {
         this.flushCloudLevelProgress();
       }, 500);
@@ -471,9 +624,12 @@
     flushCloudLevelProgress() {
       if (!this.isServerBackedPlayer() || this.pendingLevelProgressSave === null) return Promise.resolve();
       window.clearTimeout(this.levelProgressSaveTimer);
-      const payload = { levelProgress: this.pendingLevelProgressSave };
+      const savedLevelProgress = this.pendingLevelProgressSave;
+      const payload = this.buildCloudProgressPayload({ levelProgress: savedLevelProgress });
       this.pendingLevelProgressSave = null;
-      return this.player.setData(payload, true).catch(() => {});
+      return this.player.setData(payload, true).catch(() => {
+        this.pendingLevelProgressSave = savedLevelProgress;
+      });
     },
 
     async getLeaderboards() {
@@ -660,7 +816,7 @@
         return true;
       }
       try {
-        await this.player.setData({ coins, coinPurchaseTokens: tokens }, true);
+        await this.player.setData(this.buildCloudProgressPayload({ coins, coinPurchaseTokens: tokens }), true);
         this.processedPurchaseTokens = tokens;
         this.saveLocalPurchaseTokens();
         this.applySyncedCoins(coins);

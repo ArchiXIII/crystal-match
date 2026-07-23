@@ -44,7 +44,8 @@
     }
   };
 
-  Game.prototype.saveLevelProgress = function () {
+  Game.prototype.saveLevelProgress = function (options) {
+    const settings = options && typeof options === 'object' ? options : {};
     const progress = {
       highestUnlockedLevel: Math.max(1, Math.floor(this.highestUnlockedLevel || 1)),
       stars: this.levelStars || {},
@@ -53,7 +54,7 @@
     try {
       window.localStorage.setItem(this.levelProgressStorageKey, JSON.stringify(progress));
     } catch (error) {}
-    if (this.saveLevelProgressExternal) this.saveLevelProgressExternal(progress);
+    if (this.saveLevelProgressExternal && settings.cloud !== false) this.saveLevelProgressExternal(progress, options || null);
   };
 
   Game.prototype.levelStarsFor = function (levelNumber) {
@@ -336,7 +337,7 @@
         this.lastChapterTrophyEarned = chapter;
       }
       this.highestUnlockedLevel = Math.max(this.highestUnlockedLevel, this.currentLevel.n + 2);
-      this.saveLevelProgress();
+      this.saveLevelProgress({ immediate: true });
       this.submitStars();
     } else {
       this.pendingLevelReward = 0;

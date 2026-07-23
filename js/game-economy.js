@@ -105,26 +105,28 @@
     
   };
 
-  Game.prototype.saveDailyBonus = function () {
+  Game.prototype.saveDailyBonus = function (options) {
+      const settings = options && typeof options === 'object' ? options : {};
       const data = this.normalizeDailyBonus(this.dailyBonus);
       this.dailyBonus = data;
       try {
         window.localStorage.setItem(this.dailyBonusStorageKey, JSON.stringify(data));
       } catch (error) {}
-      if (this.saveDailyBonusExternal) {
-        this.saveDailyBonusExternal(data);
+      if (this.saveDailyBonusExternal && settings.cloud !== false) {
+        this.saveDailyBonusExternal(data, options || null);
       }
     
   };
 
-  Game.prototype.saveAdBonus = function () {
+  Game.prototype.saveAdBonus = function (options) {
+      const settings = options && typeof options === 'object' ? options : {};
       const data = this.normalizeAdBonus(this.adBonus);
       this.adBonus = data;
       try {
         window.localStorage.setItem(this.adBonusStorageKey, JSON.stringify(data));
       } catch (error) {}
-      if (this.saveAdBonusExternal) {
-        this.saveAdBonusExternal(data);
+      if (this.saveAdBonusExternal && settings.cloud !== false) {
+        this.saveAdBonusExternal(data, options || null);
       }
     
   };
@@ -185,8 +187,8 @@
         lastClaimDate: today,
         adClaimedDate: ''
       };
-      this.saveDailyBonus();
       this.addCoins(info.reward, { kind: 'daily' }, false, { immediate: true });
+      this.saveDailyBonus({ immediate: true });
       return true;
     
   };
@@ -202,8 +204,8 @@
           const data = this.normalizeDailyBonus(this.dailyBonus);
           data.adClaimedDate = today;
           this.dailyBonus = data;
-          this.saveDailyBonus();
           this.addCoins(info.reward, { kind: 'daily' }, false, { immediate: true });
+          this.saveDailyBonus({ immediate: true });
         })
         .finally(() => {
           this.adBonusPending = false;
@@ -244,8 +246,8 @@
             return;
           }
           this.adBonus = { lastClaimAt: Date.now() };
-          this.saveAdBonus();
           this.addCoins(info.reward, this.coinShopRewardSource || null, false, { immediate: true });
+          this.saveAdBonus({ immediate: true });
         })
         .catch(() => {
           this.coinShopError = this.t('ad.error');
