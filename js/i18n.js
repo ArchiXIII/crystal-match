@@ -133,7 +133,7 @@
       'shop.title': 'МАГАЗИН МОНЕТ',
       'shop.buy': '{price} ян',
       'shop.pending': 'Покупка...',
-      'shop.unavailable': 'Покупки доступны на Яндекс Играх',
+      'shop.unavailable': 'Покупки недоступны в текущем окружении',
       'shop.purchaseError': 'Не удалось выполнить покупку',
       'shop.pack.small': 'Горсть монет',
       'shop.pack.value': 'Мешочек монет',
@@ -159,7 +159,7 @@
       'leaderboard.player': 'Игрок',
       'leaderboard.unavailable': 'Таблица рекордов недоступна',
       'leaderboard.loadError': 'Не удалось загрузить рейтинг',
-      'leaderboard.yandexOnly': 'Рейтинг будет доступен на Яндекс Играх'
+      'leaderboard.platformOnly': 'Рейтинг недоступен в текущем окружении'
     },
     en: {
       'player.name': 'Player',
@@ -292,7 +292,7 @@
       'shop.title': 'COIN SHOP',
       'shop.buy': '{price} YAN',
       'shop.pending': 'Purchasing...',
-      'shop.unavailable': 'Purchases are available on Yandex Games',
+      'shop.unavailable': 'Purchases are unavailable in the current environment',
       'shop.purchaseError': 'Purchase failed',
       'shop.pack.small': 'Handful of coins',
       'shop.pack.value': 'Coin pouch',
@@ -318,7 +318,7 @@
       'leaderboard.player': 'Player',
       'leaderboard.unavailable': 'Leaderboard is unavailable',
       'leaderboard.loadError': 'Failed to load leaderboard',
-      'leaderboard.yandexOnly': 'Leaderboard will be available on Yandex Games'
+      'leaderboard.platformOnly': 'Leaderboard is unavailable in the current environment'
     }
   };
 

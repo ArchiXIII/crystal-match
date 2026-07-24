@@ -692,7 +692,7 @@
     setGameOverLeaderboardError(message) {
       this.gameOverLeaderboardEntries = [];
       this.gameOverLeaderboardLoading = false;
-      this.gameOverLeaderboardError = message || this.t('leaderboard.yandexOnly');
+      this.gameOverLeaderboardError = message || this.t('leaderboard.platformOnly');
     }
 
     openLeaderboard(tab) {
