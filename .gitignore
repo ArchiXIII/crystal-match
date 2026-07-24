@@ -1,6 +1,7 @@
 *
 !.gitignore
 !index.html
+!PROJECT.md
 !css/
 !css/**
 !js/
