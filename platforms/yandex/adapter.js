@@ -6,7 +6,6 @@
     name: 'yandex',
     ysdk: null,
     player: null,
-    playerMode: '',
     leaderboards: null,
     payments: null,
     leaderboardName: config.leaderboardName || 'CrystalTreasuresMatch3',
@@ -18,6 +17,7 @@
     pendingCoinDelta: 0,
     pendingCoinForceValue: false,
     coinCloudDataLoaded: false,
+    lastSyncedRankXp: null,
     pendingRankXpSave: null,
     pendingDailyBonusSave: null,
     pendingAdBonusSave: null,
@@ -77,7 +77,6 @@
 
     async loadPlayer() {
       this.player = null;
-      this.playerMode = '';
       if (!this.ysdk || !this.ysdk.getPlayer) return;
       try {
         this.player = await this.ysdk.getPlayer({ scopes: true });
@@ -87,16 +86,6 @@
         } catch (fallbackError) {
           this.player = null;
         }
-      }
-      this.playerMode = this.getPlayerMode();
-    },
-
-    getPlayerMode() {
-      if (!this.player || typeof this.player.getMode !== 'function') return '';
-      try {
-        return String(this.player.getMode() || '');
-      } catch (error) {
-        return '';
       }
     },
 
@@ -135,7 +124,9 @@
       if (!this.isServerBackedPlayer()) return {};
       try {
         const data = await this.player.getData([this.cloudStorageKey]);
-        return this.normalizeCloudProgress(data);
+        const progress = this.normalizeCloudProgress(data);
+        this.lastSyncedRankXp = Number.isFinite(progress.rankXp) ? progress.rankXp : null;
+        return progress;
       } catch (error) {
         return {};
       }
@@ -370,8 +361,11 @@
       const payload = this.buildCloudProgressPayload({ rankXp: savedXp });
       this.pendingRankXpSave = null;
       this.submitXpLeaderboard(savedXp);
+      if (savedXp === this.lastSyncedRankXp) return Promise.resolve();
       return this.player.setData(payload, true).catch(() => {
         this.pendingRankXpSave = savedXp;
+      }).then(() => {
+        if (this.pendingRankXpSave === null) this.lastSyncedRankXp = savedXp;
       });
     },
 
@@ -477,8 +471,13 @@
     },
 
     async getLeaderboards() {
-      if (!this.ysdk || !this.ysdk.getLeaderboards) return null;
+      if (!this.ysdk) return null;
       if (this.leaderboards) return this.leaderboards;
+      if (this.ysdk.leaderboards) {
+        this.leaderboards = this.ysdk.leaderboards;
+        return this.leaderboards;
+      }
+      if (!this.ysdk.getLeaderboards) return null;
       try {
         this.leaderboards = await this.ysdk.getLeaderboards();
         return this.leaderboards;
