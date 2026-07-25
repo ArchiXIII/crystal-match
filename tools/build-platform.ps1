@@ -37,6 +37,11 @@ $index = [IO.File]::ReadAllText($indexPath)
 if ($Platform -ne 'yandex') {
   $index = $index.Replace('  <script src="/sdk.js"></script>' + [Environment]::NewLine, '')
   $index = $index.Replace('platforms/yandex/', ("platforms/{0}/" -f $Platform))
+  if ($Platform -eq 'vk') {
+    $configScript = '  <script src="platforms/vk/config.js"></script>'
+    $bridgeScript = '  <script src="platforms/vk/vk-bridge.min.js"></script>'
+    $index = $index.Replace($configScript, $bridgeScript + [Environment]::NewLine + $configScript)
+  }
 }
 $utf8 = New-Object Text.UTF8Encoding($false)
 [IO.File]::WriteAllText($indexPath, $index, $utf8)

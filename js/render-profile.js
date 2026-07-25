@@ -65,7 +65,9 @@
       ctx.fillText(this.t('profile.totalXp'), x + w / 2, y + (compact ? 150 : 168));
 
       const xpY = y + (compact ? 194 : 216);
-      this.profileXpRect = { x: x + 42, y: xpY - (compact ? 32 : 38), w: w - 84, h: compact ? 64 : 76 };
+      if (this.game.platformFeatures.xpLeaderboard !== false) {
+        this.profileXpRect = { x: x + 42, y: xpY - (compact ? 32 : 38), w: w - 84, h: compact ? 64 : 76 };
+      }
       ctx.fillStyle = '#fff4d6';
       ctx.shadowColor = 'rgba(246, 189, 76, 0.48)';
       ctx.shadowBlur = this.shadow(10);

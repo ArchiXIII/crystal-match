@@ -15,8 +15,12 @@
       ctx.fillRect(0, 0, this.width, this.height);
 
       const compact = this.width < 430 || this.height < 720;
-      const w = Math.min(compact ? 390 : 500, this.width - 28);
-      const h = Math.min(compact ? 530 : 590, this.height - 28);
+      const paidCoinPacks = this.game.platformFeatures.paidCoinPacks !== false;
+      const w = Math.min(compact ? 390 : (paidCoinPacks ? 500 : 460), this.width - 28);
+      const h = Math.min(
+        paidCoinPacks ? (compact ? 530 : 590) : (compact ? 152 : 166),
+        this.height - 28
+      );
       const x = Math.round((this.width - w) / 2);
       const y = Math.round((this.height - h) / 2);
       this.roundPanel(ctx, x, y, w, h, 22, 0.95);
@@ -40,6 +44,11 @@
       const adW = w - (adX - x) * 2;
       const adH = compact ? 54 : 58;
       this.drawCoinShopAdReward(ctx, adX, adY, adW, adH, compact);
+
+      if (!paidCoinPacks) {
+        ctx.restore();
+        return;
+      }
 
       const packages = this.game.coinPurchasePackages || [];
       const gridX = x + (compact ? 14 : 18);

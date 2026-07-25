@@ -17,6 +17,14 @@
       this.levelConfig = window.CrystalMatchLevels || { levels: [], shuffleGraceUntil: 25, staticCount: 50 };
       this.i18n = options.i18n || window.CrystalMatchI18n || null;
       this.audio = options.audio || null;
+      this.platformFeatures = Object.assign({
+        nativeLeaderboard: false,
+        starsLeaderboard: true,
+        xpLeaderboard: true,
+        gameOverLeaderboard: true,
+        paidCoinPacks: true,
+        developerGames: true
+      }, options.platformFeatures || {});
       this.playerName = String(options.playerName || this.t('leaderboard.player') || '').trim() || this.t('leaderboard.player');
       this.score = 0;
       this.coinStorageKey = 'crystal-match-coins';
@@ -665,6 +673,12 @@
     }
 
     loadGameOverLeaderboard(type) {
+      if (this.platformFeatures.gameOverLeaderboard === false) {
+        this.gameOverLeaderboardLoading = false;
+        this.gameOverLeaderboardError = '';
+        this.gameOverLeaderboardEntries = [];
+        return false;
+      }
       this.gameOverLeaderboardLoading = true;
       this.gameOverLeaderboardError = '';
       this.gameOverLeaderboardEntries = [];
@@ -681,6 +695,7 @@
           isPlayer: true
         }]);
       }
+      return true;
     }
 
     setGameOverLeaderboardEntries(entries) {
@@ -696,6 +711,15 @@
     }
 
     openLeaderboard(tab) {
+      if (this.platformFeatures.nativeLeaderboard) {
+        this.leaderboardOpen = false;
+        this.profilePanelOpen = false;
+        if (this.openLeaderboardExternal) {
+          this.openLeaderboardExternal('endless');
+          return true;
+        }
+        return false;
+      }
       this.leaderboardOpen = true;
       const defaultTab = this.gameMode === 'endless' ? 'endless' : 'stars';
       this.leaderboardTab = tab === 'endless' ? 'endless' : (tab === 'stars' ? 'stars' : defaultTab);
@@ -719,6 +743,7 @@
     }
 
     openDeveloperGames() {
+      if (this.platformFeatures.developerGames === false) return false;
       if (this.openDeveloperGamesExternal) this.openDeveloperGamesExternal();
       return true;
     }
@@ -795,6 +820,7 @@
     }
 
     openXpLeaderboard() {
+      if (this.platformFeatures.xpLeaderboard === false) return false;
       this.xpLeaderboardOpen = true;
       this.xpLeaderboardLoading = true;
       this.xpLeaderboardError = '';

@@ -44,6 +44,7 @@
         ? savedProgress.coinPurchaseTokens
         : (this.loadLocalPurchaseTokens ? this.loadLocalPurchaseTokens() : []);
       const playerName = this.getPlayerDisplayName ? this.getPlayerDisplayName() : this.t('leaderboard.player');
+      const platformFeatures = this.features && typeof this.features === 'object' ? this.features : {};
       this.audio = window.CrystalMatchAudio ? new CrystalMatchAudio() : null;
       this.game = new CrystalMatchGame({
         columns: 7,
@@ -57,6 +58,7 @@
         savedDailyBonus: savedProgress.dailyBonus,
         savedAdBonus: savedProgress.adBonus,
         savedLevelProgress: savedProgress.levelProgress,
+        platformFeatures,
         i18n: window.CrystalMatchI18n,
         audio: this.audio,
         saveCoins: this.adapterCallback('saveCloudCoins'),
@@ -65,12 +67,12 @@
         saveAdBonus: this.adapterCallback('saveCloudAdBonus'),
         saveLevelProgress: this.adapterCallback('saveCloudLevelProgress'),
         submitScore: this.adapterCallback('submitLeaderboardScore'),
-        submitStars: this.adapterCallback('submitStarsLeaderboard'),
+        submitStars: platformFeatures.starsLeaderboard === false ? null : this.adapterCallback('submitStarsLeaderboard'),
         openLeaderboard: this.adapterCallback('openLeaderboard'),
-        openXpLeaderboard: this.adapterCallback('openXpLeaderboard'),
+        openXpLeaderboard: platformFeatures.xpLeaderboard === false ? null : this.adapterCallback('openXpLeaderboard'),
         openDeveloperGames: this.adapterCallback('openDeveloperGames'),
-        loadGameOverLeaderboard: this.adapterCallback('loadGameOverLeaderboard'),
-        purchaseCoins: this.adapterCallback('purchaseCoins'),
+        loadGameOverLeaderboard: platformFeatures.gameOverLeaderboard === false ? null : this.adapterCallback('loadGameOverLeaderboard'),
+        purchaseCoins: platformFeatures.paidCoinPacks === false ? null : this.adapterCallback('purchaseCoins'),
         showRewardedAd: this.adapterCallback('showRewardedAd'),
         isRewardedAdAvailable: this.adapterCallback('isRewardedAdAvailable'),
         showInterstitialAd: this.adapterCallback('showInterstitialAd')
@@ -78,8 +80,10 @@
       this.renderer = new CrystalMatchRenderer(this.canvas, this.game);
       this.input = new CrystalMatchInput(this.canvas, this.game, this.renderer);
       this.applyPerformanceProfile(true);
-      this.callAdapter('loadCoinPurchaseCatalog');
-      this.callAdapter('processPendingPurchases');
+      if (platformFeatures.paidCoinPacks !== false) {
+        this.callAdapter('loadCoinPurchaseCatalog');
+        this.callAdapter('processPendingPurchases');
+      }
       this.bindRuntimeEvents();
       if (this.bindPlatformEvents) this.bindPlatformEvents();
       requestAnimationFrame((time) => this.loop(time));
