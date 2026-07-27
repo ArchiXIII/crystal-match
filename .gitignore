@@ -3,6 +3,9 @@
 !AGENTS.md
 !index.html
 !PROJECT.md
+!.github/
+!.github/workflows/
+!.github/workflows/**
 !css/
 !css/**
 !js/
