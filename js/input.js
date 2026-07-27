@@ -67,6 +67,10 @@
           this.reset();
           return;
         }
+        if (this.game.coinShopError) {
+          this.reset();
+          return;
+        }
         const pack = this.renderer.pointToCoinShopPackage(event.clientX, event.clientY);
         if (pack) {
           this.game.playSound('button');

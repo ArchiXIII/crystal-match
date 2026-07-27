@@ -346,6 +346,7 @@
     }
       this.playSound(won ? 'goalComplete' : 'roundEnd');
       this.saveRankXp(true);
+      this.syncPlatformLeaderboards();
       if (won) this.loadGameOverLeaderboard('stars');
       this.finishedAt = Date.now();
       return true;
@@ -368,6 +369,12 @@
   Game.prototype.submitStars = function () {
     if (!this.submitStarsExternal) return;
     this.submitStarsExternal(this.totalLevelStars());
+  };
+
+  Game.prototype.syncPlatformLeaderboards = function () {
+    if (!this.syncPlatformLeaderboardsExternal) return false;
+    this.syncPlatformLeaderboardsExternal();
+    return true;
   };
 
   Game.prototype.checkLevelOutOfMoves = function () {

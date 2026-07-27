@@ -23,8 +23,13 @@
       ctx.fillRect(0, 0, this.width, this.height);
 
       const compact = this.width < 420 || this.height < 720;
+      const showLeaderboard = this.game.platformFeatures.gameOverLeaderboard !== false &&
+        (this.game.gameMode === 'level' || this.game.platformFeatures.endlessGameOverLeaderboard !== false);
       const w = Math.min(compact ? 380 : 460, this.width - 28);
-      const h = Math.min(compact ? 540 : 620, this.height - 28);
+      const h = Math.min(
+        showLeaderboard ? (compact ? 540 : 620) : (compact ? 480 : 540),
+        this.height - 28
+      );
       const x = Math.round((this.width - w) / 2);
       const y = Math.round((this.height - h) / 2);
       this.roundPanel(ctx, x, y, w, h, 22, 0.94);
@@ -139,23 +144,25 @@
           ctx.fillStyle = '#ffd77a';
           ctx.font = '900 ' + (compact ? 15 : 17) + 'px Arial';
           ctx.fillText(this.t('levels.movesLeft', { moves: Math.max(0, this.game.levelMovesLeft || 0) }), x + w / 2, movesY);
-          const levelBoardY = movesY + (compact ? 22 : 27);
-          const listX = x + 22;
-          const listW = w - 44;
-          const rowH = compact ? 25 : 28;
-          if (this.game.gameOverLeaderboardLoading) {
-            ctx.fillStyle = 'rgba(255, 244, 214, 0.78)';
-            ctx.font = '800 12px Arial';
-            ctx.fillText(this.t('gameOver.leaderboardLoading'), x + w / 2, levelBoardY + rowH);
-          } else if (this.game.gameOverLeaderboardError) {
-            ctx.fillStyle = 'rgba(255, 244, 214, 0.72)';
-            ctx.font = '800 12px Arial';
-            this.wrapText(ctx, this.game.gameOverLeaderboardError, x + 30, levelBoardY + rowH, w - 60, 17);
-          } else {
-            const rows = this.gameOverLeaderboardRows(this.game.gameOverLeaderboardEntries || [], true);
-            rows.forEach((entry, index) => {
-              this.drawGameOverLeaderboardRow(ctx, entry, listX, levelBoardY + index * rowH, listW, rowH - 4);
-            });
+          if (showLeaderboard) {
+            const levelBoardY = movesY + (compact ? 22 : 27);
+            const listX = x + 22;
+            const listW = w - 44;
+            const rowH = compact ? 25 : 28;
+            if (this.game.gameOverLeaderboardLoading) {
+              ctx.fillStyle = 'rgba(255, 244, 214, 0.78)';
+              ctx.font = '800 12px Arial';
+              ctx.fillText(this.t('gameOver.leaderboardLoading'), x + w / 2, levelBoardY + rowH);
+            } else if (this.game.gameOverLeaderboardError) {
+              ctx.fillStyle = 'rgba(255, 244, 214, 0.72)';
+              ctx.font = '800 12px Arial';
+              this.wrapText(ctx, this.game.gameOverLeaderboardError, x + 30, levelBoardY + rowH, w - 60, 17);
+            } else {
+              const rows = this.gameOverLeaderboardRows(this.game.gameOverLeaderboardEntries || [], true);
+              rows.forEach((entry, index) => {
+                this.drawGameOverLeaderboardRow(ctx, entry, listX, levelBoardY + index * rowH, listW, rowH - 4);
+              });
+            }
           }
         } else {
           ctx.fillStyle = '#ffd77a';
@@ -163,7 +170,7 @@
           ctx.fillText(this.t('gameOver.movesEnded'), x + w / 2, contentY + 36);
         }
         contentY += compact ? 112 : 136;
-      } else {
+      } else if (showLeaderboard) {
         ctx.fillStyle = '#f6bd4c';
         ctx.font = '900 ' + (compact ? 14 : 16) + 'px Arial';
         ctx.fillText(this.t('gameOver.leaderboard'), x + w / 2, contentY);
@@ -236,28 +243,32 @@
       } else {
         const adButtonY = canAdContinue ? secondaryY - buttonH - 10 : 0;
         const buttonY = canAdContinue ? adButtonY - buttonH - 10 : secondaryY - buttonH - 10;
+        const developerGames = this.game.platformFeatures.developerGames !== false;
         if (canAdContinue) {
           this.levelContinueAdButtonRect = { x: buttonX, y: adButtonY, w: buttonW, h: buttonH };
           this.drawGameOverGoldButton(ctx, buttonX, adButtonY, buttonW, buttonH, this.t('levels.continueAd'), compact);
         }
-        this.mainMenuButtonRect = { x: buttonX, y: buttonY, w: buttonW, h: buttonH };
-        this.drawGameOverGoldButton(ctx, buttonX, buttonY, buttonW, buttonH, this.t('menu.main'), compact);
+        const mainMenuY = developerGames ? buttonY : secondaryY;
+        this.mainMenuButtonRect = { x: buttonX, y: mainMenuY, w: buttonW, h: buttonH };
+        this.drawGameOverGoldButton(ctx, buttonX, mainMenuY, buttonW, buttonH, this.t('menu.main'), compact);
 
-        this.ourGamesButtonRect = { x: buttonX, y: secondaryY, w: buttonW, h: secondaryH };
-        this.roundRect(ctx, buttonX, secondaryY, buttonW, secondaryH, 14);
-        const secondaryGrd = ctx.createLinearGradient(buttonX, secondaryY, buttonX, secondaryY + secondaryH);
-        secondaryGrd.addColorStop(0, 'rgba(31, 36, 48, 0.9)');
-        secondaryGrd.addColorStop(1, 'rgba(7, 9, 14, 0.92)');
-        ctx.fillStyle = secondaryGrd;
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(246, 189, 76, 0.62)';
-        ctx.lineWidth = 1.4;
-        ctx.stroke();
-        ctx.fillStyle = '#fff4d6';
-        ctx.font = '900 14px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(this.t('menu.ourGames'), buttonX + buttonW / 2, secondaryY + secondaryH / 2 + 1);
+        if (developerGames) {
+          this.ourGamesButtonRect = { x: buttonX, y: secondaryY, w: buttonW, h: secondaryH };
+          this.roundRect(ctx, buttonX, secondaryY, buttonW, secondaryH, 14);
+          const secondaryGrd = ctx.createLinearGradient(buttonX, secondaryY, buttonX, secondaryY + secondaryH);
+          secondaryGrd.addColorStop(0, 'rgba(31, 36, 48, 0.9)');
+          secondaryGrd.addColorStop(1, 'rgba(7, 9, 14, 0.92)');
+          ctx.fillStyle = secondaryGrd;
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(246, 189, 76, 0.62)';
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+          ctx.fillStyle = '#fff4d6';
+          ctx.font = '900 14px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(this.t('menu.ourGames'), buttonX + buttonW / 2, secondaryY + secondaryH / 2 + 1);
+        }
       }
 
       ctx.restore();

@@ -15,8 +15,12 @@
       ctx.fillRect(0, 0, this.width, this.height);
 
       const compact = this.width < 430 || this.height < 720;
-      const w = Math.min(compact ? 390 : 500, this.width - 28);
-      const h = Math.min(compact ? 530 : 590, this.height - 28);
+      const paidCoinPacks = this.game.platformFeatures.paidCoinPacks !== false;
+      const w = Math.min(compact ? 390 : (paidCoinPacks ? 500 : 460), this.width - 28);
+      const h = Math.min(
+        paidCoinPacks ? (compact ? 530 : 590) : (compact ? 152 : 166),
+        this.height - 28
+      );
       const x = Math.round((this.width - w) / 2);
       const y = Math.round((this.height - h) / 2);
       this.roundPanel(ctx, x, y, w, h, 22, 0.95);
@@ -41,6 +45,12 @@
       const adH = compact ? 54 : 58;
       this.drawCoinShopAdReward(ctx, adX, adY, adW, adH, compact);
 
+      if (!paidCoinPacks) {
+        this.drawCoinShopStatus(ctx, x, y, w, h, compact);
+        ctx.restore();
+        return;
+      }
+
       const packages = this.game.coinPurchasePackages || [];
       const gridX = x + (compact ? 14 : 18);
       const gridY = adY + adH + (compact ? 10 : 12);
@@ -57,7 +67,30 @@
         const cardY = gridY + row * (cardH + gap);
         this.drawCoinShopPack(ctx, pack, cardX, cardY, cardW, cardH, compact);
       });
+      this.drawCoinShopStatus(ctx, x, y, w, h, compact);
 
+      ctx.restore();
+    };
+
+  Renderer.prototype.drawCoinShopStatus = function (ctx, x, y, w, h, compact) {
+      const message = String(this.game.coinShopError || '');
+      if (!message) return;
+      const statusW = Math.min(w - 36, compact ? 330 : 390);
+      const statusH = compact ? 64 : 72;
+      const statusX = x + (w - statusW) / 2;
+      const statusY = y + (h - statusH) / 2;
+      ctx.save();
+      this.roundRect(ctx, statusX, statusY, statusW, statusH, 14);
+      ctx.fillStyle = 'rgba(10, 11, 16, 0.96)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 229, 144, 0.72)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#fff4d6';
+      ctx.font = '800 ' + (compact ? 13 : 14) + 'px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      this.wrapText(ctx, message, statusX + 16, statusY + (compact ? 20 : 22), statusW - 32, compact ? 18 : 20);
       ctx.restore();
     };
 

@@ -1,12 +1,17 @@
 *
 !.gitignore
+!AGENTS.md
 !index.html
 !PROJECT.md
 !css/
 !css/**
 !js/
 !js/**
+!platforms/
+!platforms/**
 !sounds/
 !sounds/**
 !sprites/
 !sprites/**
+!tools/
+!tools/**
