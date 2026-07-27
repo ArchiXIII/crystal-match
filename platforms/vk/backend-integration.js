@@ -10,10 +10,14 @@
       if (!this.backendClient || !this.game) return Promise.resolve(false);
       const totalStars = this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
       const totalXp = Math.max(0, Math.floor(Number(this.game.rankXp) || 0));
-      const values = totalStars + ':' + totalXp;
+      const user = this.vkUser && typeof this.vkUser === 'object' ? this.vkUser : {};
+      const firstName = typeof user.first_name === 'string' ? user.first_name.trim() : '';
+      const lastName = typeof user.last_name === 'string' ? user.last_name.trim() : '';
+      const playerName = [firstName, lastName].filter(Boolean).join(' ');
+      const values = totalStars + ':' + totalXp + ':' + playerName;
       if (this.leaderboardSyncInFlight) return this.leaderboardSyncInFlight;
       if (values === this.lastLeaderboardSyncValues) return Promise.resolve(true);
-      this.leaderboardSyncInFlight = this.backendClient.syncLeaderboards(totalStars, totalXp)
+      this.leaderboardSyncInFlight = this.backendClient.syncLeaderboards(totalStars, totalXp, playerName)
         .then(() => {
           this.lastLeaderboardSyncValues = values;
           return true;

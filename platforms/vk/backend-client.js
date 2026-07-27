@@ -48,13 +48,16 @@
       }
     }
 
-    syncLeaderboards(totalStars, totalXp) {
+    syncLeaderboards(totalStars, totalXp, playerName) {
+      const body = {
+        totalStars: Math.max(0, Math.floor(Number(totalStars) || 0)),
+        totalXp: Math.max(0, Math.floor(Number(totalXp) || 0))
+      };
+      const name = typeof playerName === 'string' ? playerName.trim() : '';
+      if (name) body.playerName = name;
       return this.request('/v1/leaderboards/sync', {
         method: 'POST',
-        body: {
-          totalStars: Math.max(0, Math.floor(Number(totalStars) || 0)),
-          totalXp: Math.max(0, Math.floor(Number(totalXp) || 0))
-        }
+        body
       });
     }
 
