@@ -23,7 +23,8 @@
       ctx.fillRect(0, 0, this.width, this.height);
 
       const compact = this.width < 420 || this.height < 720;
-      const showLeaderboard = this.game.platformFeatures.gameOverLeaderboard !== false;
+      const showLeaderboard = this.game.platformFeatures.gameOverLeaderboard !== false &&
+        (this.game.gameMode === 'level' || this.game.platformFeatures.endlessGameOverLeaderboard !== false);
       const w = Math.min(compact ? 380 : 460, this.width - 28);
       const h = Math.min(
         showLeaderboard ? (compact ? 540 : 620) : (compact ? 480 : 540),

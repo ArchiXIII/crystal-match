@@ -22,6 +22,7 @@
         starsLeaderboard: true,
         xpLeaderboard: true,
         gameOverLeaderboard: true,
+        endlessGameOverLeaderboard: true,
         paidCoinPacks: true,
         developerGames: true
       }, options.platformFeatures || {});
@@ -32,18 +33,22 @@
       this.dailyBonusStorageKey = 'crystal-match-daily-bonus';
       this.adBonusStorageKey = 'crystal-match-ad-bonus';
       this.levelProgressStorageKey = 'crystal-match-level-progress';
+      this.settingsStorageKey = 'crystal-match-settings';
       this.saveCoinsExternal = typeof options.saveCoins === 'function' ? options.saveCoins : null;
       this.saveRankXpExternal = typeof options.saveRankXp === 'function' ? options.saveRankXp : null;
       this.saveDailyBonusExternal = typeof options.saveDailyBonus === 'function' ? options.saveDailyBonus : null;
       this.saveAdBonusExternal = typeof options.saveAdBonus === 'function' ? options.saveAdBonus : null;
       this.saveLevelProgressExternal = typeof options.saveLevelProgress === 'function' ? options.saveLevelProgress : null;
+      this.saveSettingsExternal = typeof options.saveSettings === 'function' ? options.saveSettings : null;
       this.submitScoreExternal = typeof options.submitScore === 'function' ? options.submitScore : null;
       this.submitStarsExternal = typeof options.submitStars === 'function' ? options.submitStars : null;
+      this.syncPlatformLeaderboardsExternal = typeof options.syncPlatformLeaderboards === 'function' ? options.syncPlatformLeaderboards : null;
       this.openLeaderboardExternal = typeof options.openLeaderboard === 'function' ? options.openLeaderboard : null;
       this.openXpLeaderboardExternal = typeof options.openXpLeaderboard === 'function' ? options.openXpLeaderboard : null;
       this.openDeveloperGamesExternal = typeof options.openDeveloperGames === 'function' ? options.openDeveloperGames : null;
       this.loadGameOverLeaderboardExternal = typeof options.loadGameOverLeaderboard === 'function' ? options.loadGameOverLeaderboard : null;
       this.purchaseCoinsExternal = typeof options.purchaseCoins === 'function' ? options.purchaseCoins : null;
+      this.processPendingPurchasesExternal = typeof options.processPendingPurchases === 'function' ? options.processPendingPurchases : null;
       this.showRewardedAdExternal = typeof options.showRewardedAd === 'function' ? options.showRewardedAd : null;
       this.isRewardedAdAvailableExternal = typeof options.isRewardedAdAvailable === 'function' ? options.isRewardedAdAvailable : null;
       this.showInterstitialAdExternal = typeof options.showInterstitialAd === 'function' ? options.showInterstitialAd : null;
@@ -67,7 +72,10 @@
       this.saveRankXp();
       this.saveDailyBonus();
       this.saveAdBonus();
-      this.soundOn = true;
+      this.settings = this.normalizeSettings(options.savedSettings || this.loadSettings());
+      this.soundOn = this.settings.soundOn;
+      if (this.audio && this.audio.setEnabled) this.audio.setEnabled(this.soundOn);
+      this.saveSettings();
       this.state = STATE_IDLE;
       this.selected = null;
       this.tiles = [];
@@ -204,6 +212,8 @@
     toggleSound() {
       this.soundOn = !this.soundOn;
       if (this.audio && this.audio.setEnabled) this.audio.setEnabled(this.soundOn);
+      this.settings.soundOn = this.soundOn;
+      this.saveSettings();
       return this.soundOn;
     }
 
@@ -634,6 +644,7 @@
       this.playSound('roundEnd');
       this.saveRankXp(true);
       this.submitScore();
+      this.syncPlatformLeaderboards();
       this.loadGameOverLeaderboard();
       this.finishedAt = Date.now();
       return true;
@@ -673,7 +684,9 @@
     }
 
     loadGameOverLeaderboard(type) {
-      if (this.platformFeatures.gameOverLeaderboard === false) {
+      const endlessMode = type !== 'stars' && this.gameMode !== 'level';
+      if (this.platformFeatures.gameOverLeaderboard === false ||
+          (endlessMode && this.platformFeatures.endlessGameOverLeaderboard === false)) {
         this.gameOverLeaderboardLoading = false;
         this.gameOverLeaderboardError = '';
         this.gameOverLeaderboardEntries = [];
@@ -711,18 +724,20 @@
     }
 
     openLeaderboard(tab) {
-      if (this.platformFeatures.nativeLeaderboard) {
+      const defaultTab = this.gameMode === 'endless' ? 'endless' : 'stars';
+      const selectedTab = tab === 'endless' ? 'endless' : (tab === 'stars' ? 'stars' : defaultTab);
+      if (this.platformFeatures.nativeLeaderboard ||
+          (selectedTab === 'endless' && this.platformFeatures.nativeEndlessLeaderboard)) {
         this.leaderboardOpen = false;
         this.profilePanelOpen = false;
         if (this.openLeaderboardExternal) {
-          this.openLeaderboardExternal('endless');
+          this.openLeaderboardExternal(selectedTab);
           return true;
         }
         return false;
       }
       this.leaderboardOpen = true;
-      const defaultTab = this.gameMode === 'endless' ? 'endless' : 'stars';
-      this.leaderboardTab = tab === 'endless' ? 'endless' : (tab === 'stars' ? 'stars' : defaultTab);
+      this.leaderboardTab = selectedTab;
       this.profilePanelOpen = false;
       this.leaderboardLoading = true;
       this.leaderboardError = '';

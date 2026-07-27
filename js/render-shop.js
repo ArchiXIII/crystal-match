@@ -46,6 +46,7 @@
       this.drawCoinShopAdReward(ctx, adX, adY, adW, adH, compact);
 
       if (!paidCoinPacks) {
+        this.drawCoinShopStatus(ctx, x, y, w, h, compact);
         ctx.restore();
         return;
       }
@@ -66,7 +67,30 @@
         const cardY = gridY + row * (cardH + gap);
         this.drawCoinShopPack(ctx, pack, cardX, cardY, cardW, cardH, compact);
       });
+      this.drawCoinShopStatus(ctx, x, y, w, h, compact);
 
+      ctx.restore();
+    };
+
+  Renderer.prototype.drawCoinShopStatus = function (ctx, x, y, w, h, compact) {
+      const message = String(this.game.coinShopError || '');
+      if (!message) return;
+      const statusW = Math.min(w - 36, compact ? 330 : 390);
+      const statusH = compact ? 64 : 72;
+      const statusX = x + (w - statusW) / 2;
+      const statusY = y + (h - statusH) / 2;
+      ctx.save();
+      this.roundRect(ctx, statusX, statusY, statusW, statusH, 14);
+      ctx.fillStyle = 'rgba(10, 11, 16, 0.96)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 229, 144, 0.72)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#fff4d6';
+      ctx.font = '800 ' + (compact ? 13 : 14) + 'px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      this.wrapText(ctx, message, statusX + 16, statusY + (compact ? 20 : 22), statusW - 32, compact ? 18 : 20);
       ctx.restore();
     };
 

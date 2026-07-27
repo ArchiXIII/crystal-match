@@ -40,7 +40,11 @@ if ($Platform -ne 'yandex') {
   if ($Platform -eq 'vk') {
     $configScript = '  <script src="platforms/vk/config.js"></script>'
     $bridgeScript = '  <script src="platforms/vk/vk-bridge.min.js"></script>'
+    $adapterScript = '  <script src="platforms/vk/adapter.js"></script>'
+    $backendScript = '  <script src="platforms/vk/backend-client.js"></script>'
+    $integrationScript = '  <script src="platforms/vk/backend-integration.js"></script>'
     $index = $index.Replace($configScript, $bridgeScript + [Environment]::NewLine + $configScript)
+    $index = $index.Replace($adapterScript, $backendScript + [Environment]::NewLine + $integrationScript + [Environment]::NewLine + $adapterScript)
   }
 }
 $utf8 = New-Object Text.UTF8Encoding($false)

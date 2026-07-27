@@ -27,7 +27,7 @@
           currencyIconSrc
         });
       });
-    
+
   };
 
   Game.prototype.loadCoins = function (defaultValue) {
@@ -39,7 +39,7 @@
       } catch (error) {
         return defaultValue;
       }
-    
+
   };
 
   Game.prototype.loadDailyBonus = function () {
@@ -50,7 +50,7 @@
       } catch (error) {
         return {};
       }
-    
+
   };
 
   Game.prototype.loadAdBonus = function () {
@@ -61,7 +61,7 @@
       } catch (error) {
         return {};
       }
-    
+
   };
 
   Game.prototype.normalizeDailyBonus = function (value) {
@@ -74,7 +74,7 @@
         lastClaimDate: /^\d{4}-\d{2}-\d{2}$/.test(lastClaimDate) ? lastClaimDate : '',
         adClaimedDate: /^\d{4}-\d{2}-\d{2}$/.test(adClaimedDate) ? adClaimedDate : ''
       };
-    
+
   };
 
   Game.prototype.normalizeAdBonus = function (value) {
@@ -83,7 +83,37 @@
       return {
         lastClaimAt: Number.isFinite(lastClaimAt) && lastClaimAt > 0 ? Math.floor(lastClaimAt) : 0
       };
-    
+
+  };
+
+  Game.prototype.loadSettings = function () {
+      try {
+        const saved = window.localStorage.getItem(this.settingsStorageKey);
+        return saved ? JSON.parse(saved) || {} : {};
+      } catch (error) {
+        return {};
+      }
+
+  };
+
+  Game.prototype.normalizeSettings = function (value) {
+      const source = value && typeof value === 'object' ? value : {};
+      return {
+        soundOn: source.soundOn !== false
+      };
+
+  };
+
+  Game.prototype.saveSettings = function (options) {
+      const settings = this.normalizeSettings({ soundOn: this.soundOn });
+      this.settings = settings;
+      try {
+        window.localStorage.setItem(this.settingsStorageKey, JSON.stringify(settings));
+      } catch (error) {}
+      if (this.saveSettingsExternal && (!options || options.cloud !== false)) {
+        this.saveSettingsExternal(settings, options || null);
+      }
+
   };
 
   Game.prototype.saveCoins = function (options) {
@@ -102,7 +132,7 @@
         });
       }
       this.coinSyncBase = value;
-    
+
   };
 
   Game.prototype.saveDailyBonus = function (options) {
@@ -115,7 +145,7 @@
       if (this.saveDailyBonusExternal && settings.cloud !== false) {
         this.saveDailyBonusExternal(data, options || null);
       }
-    
+
   };
 
   Game.prototype.saveAdBonus = function (options) {
@@ -128,7 +158,7 @@
       if (this.saveAdBonusExternal && settings.cloud !== false) {
         this.saveAdBonusExternal(data, options || null);
       }
-    
+
   };
 
   Game.prototype.todayKey = function () {
@@ -137,19 +167,19 @@
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const day = String(now.getDate()).padStart(2, '0');
       return year + '-' + month + '-' + day;
-    
+
   };
 
   Game.prototype.dayNumber = function (dateKey) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey || '')) return null;
       const parts = dateKey.split('-').map((part) => Number(part));
       return Math.floor(Date.UTC(parts[0], parts[1] - 1, parts[2]) / 86400000);
-    
+
   };
 
   Game.prototype.dailyBonusRewards = function () {
       return [1000, 1200, 1400, 1600, 1800, 2000, 2500];
-    
+
   };
 
   Game.prototype.dailyBonusInfo = function () {
@@ -175,7 +205,7 @@
         reward: rewards[rewardIndex],
         maxed: nextStreak >= rewards.length
       };
-    
+
   };
 
   Game.prototype.claimDailyBonus = function () {
@@ -190,7 +220,7 @@
       this.addCoins(info.reward, { kind: 'daily' }, false, { immediate: true });
       this.saveDailyBonus({ immediate: true });
       return true;
-    
+
   };
 
   Game.prototype.claimDailyBonusAd = function () {
@@ -211,7 +241,7 @@
           this.adBonusPending = false;
         });
       return true;
-    
+
   };
 
   Game.prototype.adRewardInfo = function () {
@@ -226,7 +256,7 @@
         available: remainingMs <= 0 && !this.adBonusPending,
         pending: this.adBonusPending
       };
-    
+
   };
 
   Game.prototype.claimAdReward = function (source) {
@@ -257,7 +287,7 @@
           this.coinShopRewardSource = null;
         });
       return true;
-    
+
   };
 
   Game.prototype.addCoins = function (amount, source, countAsEarned = true, options) {
@@ -275,22 +305,23 @@
         this.playSound('coinCollect');
       }
       this.saveCoins(options);
-    
+
   };
 
   Game.prototype.openCoinShop = function () {
       this.coinShopOpen = true;
       this.coinShopError = '';
       this.profilePanelOpen = false;
+      if (this.processPendingPurchasesExternal) this.processPendingPurchasesExternal({ source: 'shop' });
       return true;
-    
+
   };
 
   Game.prototype.closeCoinShop = function () {
       this.coinShopOpen = false;
       this.coinShopError = '';
       return true;
-    
+
   };
 
   Game.prototype.buyCoinPackage = function (packageId, source) {
@@ -305,16 +336,16 @@
       this.coinShopError = '';
       Promise.resolve(this.purchaseCoinsExternal(pack))
         .then((success) => {
-          if (!success) this.coinShopError = this.t('shop.purchaseError');
+          if (!success && !this.coinShopError) this.coinShopError = this.t('shop.purchaseError');
         })
         .catch(() => {
-          this.coinShopError = this.t('shop.purchaseError');
+          if (!this.coinShopError) this.coinShopError = this.t('shop.purchaseError');
         })
         .finally(() => {
           this.coinShopPendingId = '';
         });
       return true;
-    
+
   };
 
   Game.prototype.applyCoinPurchase = function (productId) {
@@ -325,7 +356,7 @@
       delete this.coinShopPurchaseSources[pack.id];
       this.coinShopError = '';
       return true;
-    
+
   };
 
   Game.prototype.spendCoins = function (amount) {
@@ -335,7 +366,7 @@
       this.spawnCoinSpendBurst(amount);
       this.saveCoins({ immediate: true });
       return true;
-    
+
   };
 
   Game.prototype.spawnCoinSpendBurst = function (amount) {
@@ -355,7 +386,7 @@
       if (this.coinSpendBursts.length > limit) {
         this.coinSpendBursts.splice(0, this.coinSpendBursts.length - limit);
       }
-    
+
   };
 
   Game.prototype.spawnCoinFlights = function (source, amount) {
@@ -387,30 +418,30 @@
           this.displayCoins = Math.min(this.coins, this.displayCoins + remainingValue);
         }
       }
-    
+
   };
 
   Game.prototype.roundCoinsEarned = function () {
       return Math.max(0, this.roundEarnedCoins);
-    
+
   };
 
   Game.prototype.hasUsableBoosters = function () {
       return this.availableBoosters().some((booster) => this.coins >= this.currentBoosterCost(booster));
-    
+
   };
 
   Game.prototype.availableBoosters = function () {
       if (this.gameMode !== 'level' || !this.currentLevel) return this.boosters;
       const allowed = this.currentLevel.boosters || [];
       return this.boosters.filter((booster) => allowed.indexOf(booster.id) !== -1);
-    
+
   };
 
   Game.prototype.currentBoosterCost = function (booster) {
       const uses = this.boosterUsesThisRound && this.boosterUsesThisRound[booster.id] ? this.boosterUsesThisRound[booster.id] : 0;
       return Math.ceil(booster.cost * Math.pow(1.2, uses));
-    
+
   };
 
   Game.prototype.createBoosterUseMap = function () {
@@ -419,7 +450,7 @@
         bomb: 0,
         rainbow: 0
       };
-    
+
   };
 
 })();

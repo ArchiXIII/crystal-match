@@ -135,6 +135,8 @@
       'shop.pending': 'Покупка...',
       'shop.unavailable': 'Покупки недоступны в текущем окружении',
       'shop.purchaseError': 'Не удалось выполнить покупку',
+      'shop.backendUnavailable': 'Покупки временно недоступны.\nПопробуйте позже.',
+      'shop.processing': 'Покупка обрабатывается.\nМонеты будут начислены после подтверждения.',
       'shop.pack.small': 'Горсть монет',
       'shop.pack.value': 'Мешочек монет',
       'shop.pack.big': 'Сундук монет',
@@ -159,7 +161,8 @@
       'leaderboard.player': 'Игрок',
       'leaderboard.unavailable': 'Таблица рекордов недоступна',
       'leaderboard.loadError': 'Не удалось загрузить рейтинг',
-      'leaderboard.platformOnly': 'Рейтинг недоступен в текущем окружении'
+      'leaderboard.platformOnly': 'Рейтинг недоступен в текущем окружении',
+      'leaderboard.backendUnavailable': 'Рейтинг временно недоступен.\nПопробуйте открыть его позже.'
     },
     en: {
       'player.name': 'Player',
@@ -294,6 +297,8 @@
       'shop.pending': 'Purchasing...',
       'shop.unavailable': 'Purchases are unavailable in the current environment',
       'shop.purchaseError': 'Purchase failed',
+      'shop.backendUnavailable': 'Purchases are temporarily unavailable.\nPlease try again later.',
+      'shop.processing': 'Purchase is being processed.\nCoins will be added after confirmation.',
       'shop.pack.small': 'Handful of coins',
       'shop.pack.value': 'Coin pouch',
       'shop.pack.big': 'Coin chest',
@@ -318,7 +323,8 @@
       'leaderboard.player': 'Player',
       'leaderboard.unavailable': 'Leaderboard is unavailable',
       'leaderboard.loadError': 'Failed to load leaderboard',
-      'leaderboard.platformOnly': 'Leaderboard is unavailable in the current environment'
+      'leaderboard.platformOnly': 'Leaderboard is unavailable in the current environment',
+      'leaderboard.backendUnavailable': 'Leaderboard is temporarily unavailable.\nPlease try again later.'
     }
   };
 

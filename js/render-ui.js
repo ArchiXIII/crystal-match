@@ -40,20 +40,23 @@
     };
 
   Renderer.prototype.wrapText = function (ctx, text, x, y, maxWidth, lineHeight) {
-      const words = text.split(' ');
-      let line = '';
       let lineY = y;
-      words.forEach((word) => {
-        const test = line ? line + ' ' + word : word;
-        if (ctx.measureText(test).width > maxWidth && line) {
-          ctx.fillText(line, x + maxWidth / 2, lineY);
-          line = word;
-          lineY += lineHeight;
-        } else {
-          line = test;
-        }
+      String(text || '').split('\n').forEach((paragraph, paragraphIndex, paragraphs) => {
+        const words = paragraph.split(' ').filter(Boolean);
+        let line = '';
+        words.forEach((word) => {
+          const test = line ? line + ' ' + word : word;
+          if (ctx.measureText(test).width > maxWidth && line) {
+            ctx.fillText(line, x + maxWidth / 2, lineY);
+            line = word;
+            lineY += lineHeight;
+          } else {
+            line = test;
+          }
+        });
+        if (line) ctx.fillText(line, x + maxWidth / 2, lineY);
+        if (paragraphIndex < paragraphs.length - 1) lineY += lineHeight;
       });
-      if (line) ctx.fillText(line, x + maxWidth / 2, lineY);
     };
 
   Renderer.prototype.wrapTextLeft = function (ctx, text, x, y, maxWidth, lineHeight, maxY) {

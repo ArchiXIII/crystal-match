@@ -7,9 +7,13 @@
     vkBridge: null,
     vkUser: null,
     vkLaunchParams: null,
+    rawLaunchParams: '',
+    backendClient: null,
     bridgeListener: null,
     features: config.features || {},
     storageKey: config.storageKey || 'crystalProgress',
+    purchaseEventsLocalKey: config.purchaseEventsLocalKey || 'crystal-match-vk-purchase-events',
+    localBestScoreKey: config.localBestScoreKey || 'crystal-match-vk-best-score',
     storageAvailable: false,
     cloudProgress: null,
     cloudDirty: false,
@@ -22,8 +26,15 @@
     cloudRetryDelay: 4000,
     adInFlight: false,
     purchaseInFlight: false,
+    purchaseEventsInFlight: false,
+    purchaseBackendReady: null,
+    appliedPurchaseEventIds: [],
+    purchaseAwaitingConfirmation: false,
+    leaderboardSyncInFlight: null,
+    lastLeaderboardSyncValues: '',
 
     async initPlatform() {
+      this.rawLaunchParams = String(window.location.search || '').replace(/^\?/, '');
       const source = window.vkBridge && (window.vkBridge.default || window.vkBridge);
       this.vkBridge = source && typeof source.send === 'function' ? source : null;
       if (!this.vkBridge) return;
@@ -41,6 +52,13 @@
         this.vkLaunchParams = await this.vkBridge.send('VKWebAppGetLaunchParams');
       } catch (error) {
         this.vkLaunchParams = null;
+      }
+      if (window.CrystalMatchVkBackendClient) {
+        this.backendClient = new window.CrystalMatchVkBackendClient({
+          baseUrl: config.backendUrl,
+          timeout: 3000,
+          getLaunchParams: () => this.rawLaunchParams
+        });
       }
     },
 
@@ -104,6 +122,89 @@
       };
     },
 
+    normalizeSettings(value) {
+      const source = value && typeof value === 'object' ? value : {};
+      return {
+        soundOn: source.soundOn !== false
+      };
+    },
+
+    normalizeBoosters(value) {
+      const source = value && typeof value === 'object' ? value : {};
+      const boosters = {};
+      Object.keys(source).forEach((key) => {
+        const count = Math.max(0, Math.floor(Number(source[key]) || 0));
+        if (count > 0) boosters[String(key)] = count;
+      });
+      return boosters;
+    },
+
+    normalizePurchaseEventIds(value) {
+      if (!Array.isArray(value)) return [];
+      const result = [];
+      const seen = new Set();
+      value.forEach((item) => {
+        const id = this.purchaseEventStorageId(item);
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        result.push(id);
+      });
+      return result.slice(-100);
+    },
+
+    purchaseEventStorageId(value) {
+      const source = String(value || '');
+      if (!source) return '';
+      if (/^h:[0-9a-f]{16}$/.test(source)) return source;
+      let first = 2166136261;
+      let second = 2246822507;
+      for (let index = 0; index < source.length; index += 1) {
+        const code = source.charCodeAt(index);
+        first = Math.imul(first ^ code, 16777619);
+        second = Math.imul(second ^ code, 3266489917);
+      }
+      return 'h:' +
+        (first >>> 0).toString(16).padStart(8, '0') +
+        (second >>> 0).toString(16).padStart(8, '0');
+    },
+
+    loadLocalPurchaseEventIds() {
+      try {
+        return this.normalizePurchaseEventIds(JSON.parse(window.localStorage.getItem(this.purchaseEventsLocalKey) || '[]'));
+      } catch (error) {
+        return [];
+      }
+    },
+
+    saveLocalPurchaseEventIds() {
+      try {
+        window.localStorage.setItem(
+          this.purchaseEventsLocalKey,
+          JSON.stringify(this.normalizePurchaseEventIds(this.appliedPurchaseEventIds))
+        );
+        return true;
+      } catch (error) {
+        return false;
+      }
+    },
+
+    loadLocalBestScore() {
+      try {
+        const value = Number(window.localStorage.getItem(this.localBestScoreKey));
+        return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+      } catch (error) {
+        return 0;
+      }
+    },
+
+    saveLocalBestScore(score) {
+      const value = Math.max(0, Math.floor(Number(score) || 0));
+      try {
+        window.localStorage.setItem(this.localBestScoreKey, String(value));
+      } catch (error) {}
+      return value;
+    },
+
     normalizeLevelProgress(value) {
       const source = value && typeof value === 'object' ? value : {};
       const stars = {};
@@ -138,6 +239,9 @@
       if (source.dailyBonus && typeof source.dailyBonus === 'object') progress.dailyBonus = this.normalizeDailyBonus(source.dailyBonus);
       if (source.adBonus && typeof source.adBonus === 'object') progress.adBonus = this.normalizeAdBonus(source.adBonus);
       if (source.levelProgress && typeof source.levelProgress === 'object') progress.levelProgress = this.normalizeLevelProgress(source.levelProgress);
+      if (source.settings && typeof source.settings === 'object') progress.settings = this.normalizeSettings(source.settings);
+      progress.boosters = this.normalizeBoosters(source.boosters);
+      progress.appliedPurchaseEventIds = this.normalizePurchaseEventIds(source.appliedPurchaseEventIds);
       return progress;
     },
 
@@ -158,6 +262,16 @@
         const stored = await this.readStoredProgress();
         this.storageAvailable = true;
         this.cloudProgress = stored.progress;
+        this.cloudProgress.endlessBestScore = Math.max(
+          Math.max(0, Math.floor(Number(this.cloudProgress.endlessBestScore) || 0)),
+          this.loadLocalBestScore()
+        );
+        this.appliedPurchaseEventIds = stored.raw
+          ? this.normalizePurchaseEventIds(this.cloudProgress.appliedPurchaseEventIds)
+          : this.loadLocalPurchaseEventIds();
+        this.cloudProgress.appliedPurchaseEventIds = this.appliedPurchaseEventIds.slice();
+        this.saveLocalPurchaseEventIds();
+        this.saveLocalBestScore(this.cloudProgress.endlessBestScore);
         this.lastStoredValue = stored.raw;
         return Object.assign({
           cloudDataLoaded: true,
@@ -179,12 +293,32 @@
         endlessBestScore: Math.max(0, Math.floor(Number(source.endlessBestScore) || 0)),
         dailyBonus: this.normalizeDailyBonus(source.dailyBonus || (game && game.dailyBonus)),
         adBonus: this.normalizeAdBonus(source.adBonus || (game && game.adBonus)),
+        settings: this.normalizeSettings(source.settings || (game && game.settings)),
+        boosters: this.normalizeBoosters(source.boosters),
+        appliedPurchaseEventIds: this.normalizePurchaseEventIds(
+          this.appliedPurchaseEventIds.length ? this.appliedPurchaseEventIds : source.appliedPurchaseEventIds
+        ),
         levelProgress: this.normalizeLevelProgress(source.levelProgress || (game ? {
           highestUnlockedLevel: game.highestUnlockedLevel,
           stars: game.levelStars,
           chapterTrophies: game.levelChapterTrophies
         } : null))
       };
+    },
+
+    initializeCloudProgressFromGame() {
+      if (!this.game || !this.isServerBackedPlayer()) return false;
+      const source = this.cloudProgress || {};
+      this.applyStoredProgress(source);
+      this.cloudProgress = this.buildCloudProgress();
+      this.cloudProgress.endlessBestScore = Math.max(
+        this.cloudProgress.endlessBestScore,
+        this.loadLocalBestScore()
+      );
+      this.cloudProgress.boosters = this.normalizeBoosters(source.boosters);
+      this.cloudProgress.appliedPurchaseEventIds = this.normalizePurchaseEventIds(this.appliedPurchaseEventIds);
+      this.markCloudDirty(0);
+      return true;
     },
 
     markCloudDirty(delay) {
@@ -244,6 +378,15 @@
       return this.cloudSavePromise;
     },
 
+    async flushCloudProgressFully() {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const saved = await this.flushCloudProgress();
+        if (!saved) return false;
+        if (!this.cloudDirty && !this.cloudSaveInFlight) return true;
+      }
+      return !this.cloudDirty && !this.cloudSaveInFlight;
+    },
+
     saveCloudCoins(coins, meta) {
       if (!this.isServerBackedPlayer()) return;
       if (!this.cloudProgress) this.cloudProgress = {};
@@ -283,6 +426,14 @@
       this.markCloudDirty(info.immediate ? 0 : 500);
     },
 
+    saveCloudSettings(settings, meta) {
+      if (!this.isServerBackedPlayer()) return;
+      if (!this.cloudProgress) this.cloudProgress = {};
+      this.cloudProgress.settings = this.normalizeSettings(settings);
+      const info = meta && typeof meta === 'object' ? meta : {};
+      this.markCloudDirty(info.immediate ? 0 : 350);
+    },
+
     flushCloudCoins() {
       return this.flushCloudProgress();
     },
@@ -300,6 +451,10 @@
     },
 
     flushCloudLevelProgress() {
+      return this.flushCloudProgress();
+    },
+
+    flushCloudSettings() {
       return this.flushCloudProgress();
     },
 
@@ -336,6 +491,19 @@
         this.game.levelChapterTrophies = levelProgress.chapterTrophies || {};
         this.game.saveLevelProgress({ cloud: false });
       }
+      if (progress.settings && this.game.normalizeSettings) {
+        this.game.settings = this.game.normalizeSettings(progress.settings);
+        this.game.soundOn = this.game.settings.soundOn;
+        if (this.game.audio && this.game.audio.setEnabled) this.game.audio.setEnabled(this.game.soundOn);
+        this.game.saveSettings({ cloud: false });
+      }
+      if (Number.isFinite(progress.endlessBestScore)) {
+        this.saveLocalBestScore(progress.endlessBestScore);
+      }
+      if (Array.isArray(progress.appliedPurchaseEventIds)) {
+        this.appliedPurchaseEventIds = this.normalizePurchaseEventIds(progress.appliedPurchaseEventIds);
+        this.saveLocalPurchaseEventIds();
+      }
     },
 
     async refreshCloudCoins() {
@@ -344,6 +512,7 @@
         const stored = await this.readStoredProgress();
         this.cloudProgress = stored.progress;
         this.lastStoredValue = stored.raw;
+        this.appliedPurchaseEventIds = this.normalizePurchaseEventIds(stored.progress.appliedPurchaseEventIds);
         this.applyStoredProgress(stored.progress);
       } catch (error) {}
     },
@@ -355,85 +524,9 @@
       const current = Math.max(0, Math.floor(Number(this.cloudProgress.endlessBestScore) || 0));
       if (value <= current) return false;
       this.cloudProgress.endlessBestScore = value;
+      this.saveLocalBestScore(value);
       this.markCloudDirty(450);
       return true;
-    },
-
-    async openLeaderboard() {
-      if (!this.vkBridge) return false;
-      const cloudBest = this.cloudProgress ? Number(this.cloudProgress.endlessBestScore) : 0;
-      const score = Math.max(
-        0,
-        Math.floor(Number(cloudBest) || 0),
-        Math.floor(Number(this.game && this.game.score) || 0)
-      );
-      this.submitLeaderboardScore(score);
-      this.pauseAudioForSystem();
-      try {
-        await this.vkBridge.send('VKWebAppShowLeaderBoardBox', { user_result: score });
-        return true;
-      } catch (error) {
-        return false;
-      } finally {
-        this.resumeAudioFromSystem();
-      }
-    },
-
-    getPurchaseProduct(packId) {
-      const products = config.products || {};
-      const compactId = String(packId || '').replace('coins_', 'coins');
-      const product = products[packId] || products[compactId];
-      if (!product) return null;
-      if (typeof product === 'string') {
-        return product ? { item: product, votes: 0 } : null;
-      }
-      const item = String(product.item || '');
-      if (!item) return null;
-      return {
-        item,
-        votes: Math.max(0, Math.floor(Number(product.votes) || 0))
-      };
-    },
-
-    loadCoinPurchaseCatalog() {
-      if (!this.game || !this.game.setCoinPurchaseCatalog) return false;
-      const suffix = this.lang === 'ru' ? ' голосов' : ' votes';
-      const catalog = this.game.coinPurchasePackages.map((pack) => {
-        const product = this.getPurchaseProduct(pack.id);
-        if (!product) return null;
-        return {
-          id: pack.id,
-          price: product.votes ? String(product.votes) + suffix : ''
-        };
-      }).filter(Boolean);
-      this.game.setCoinPurchaseCatalog(catalog);
-      return catalog.length > 0;
-    },
-
-    async purchaseCoins(pack) {
-      if (!pack || !pack.id || !this.game || !this.vkBridge || this.purchaseInFlight) return false;
-      const product = this.getPurchaseProduct(pack.id);
-      if (!product) return false;
-      this.purchaseInFlight = true;
-      this.pauseAudioForSystem();
-      try {
-        const response = await this.vkBridge.send('VKWebAppShowOrderBox', {
-          type: 'item',
-          item: product.item
-        });
-        if (!response || response.status !== 'success') return false;
-        if (!this.game.applyCoinPurchase(pack.id)) return false;
-        if (!this.cloudProgress) this.cloudProgress = {};
-        this.cloudProgress.coins = Math.max(0, Math.floor(this.game.coins || 0));
-        this.markCloudDirty(0);
-        await this.flushCloudProgress();
-        return true;
-      } catch (error) {
-        return false;
-      } finally {
-        this.purchaseInFlight = false;
-        this.resumeAudioFromSystem();
-      }
     },
 
     isRewardedAdAvailable() {
@@ -462,6 +555,8 @@
       return this.showVkAd('interstitial');
     }
   };
+
+  Object.assign(Adapter, window.CrystalMatchVkBackendIntegration || {});
 
   if (window.CrystalMatchPlatform && window.CrystalMatchPlatform.registerAdapter) {
     window.CrystalMatchPlatform.registerAdapter(Adapter);

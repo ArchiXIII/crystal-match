@@ -5,12 +5,17 @@
     name: 'vk',
     appId: 54691807,
     storageKey: 'crystalProgress',
+    purchaseEventsLocalKey: 'crystal-match-vk-purchase-events',
+    localBestScoreKey: 'crystal-match-vk-best-score',
+    backendUrl: 'https://d5dl7q0eh16ojp505u1v.6brbn2wz.apigw.yandexcloud.net',
     features: {
-      nativeLeaderboard: true,
-      starsLeaderboard: false,
-      xpLeaderboard: false,
-      gameOverLeaderboard: false,
-      paidCoinPacks: false,
+      nativeLeaderboard: false,
+      nativeEndlessLeaderboard: true,
+      starsLeaderboard: true,
+      xpLeaderboard: true,
+      gameOverLeaderboard: true,
+      endlessGameOverLeaderboard: false,
+      paidCoinPacks: true,
       developerGames: false
     },
     leaderboards: {

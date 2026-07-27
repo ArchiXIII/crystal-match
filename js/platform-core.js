@@ -58,6 +58,7 @@
         savedDailyBonus: savedProgress.dailyBonus,
         savedAdBonus: savedProgress.adBonus,
         savedLevelProgress: savedProgress.levelProgress,
+        savedSettings: savedProgress.settings,
         platformFeatures,
         i18n: window.CrystalMatchI18n,
         audio: this.audio,
@@ -66,13 +67,16 @@
         saveDailyBonus: this.adapterCallback('saveCloudDailyBonus'),
         saveAdBonus: this.adapterCallback('saveCloudAdBonus'),
         saveLevelProgress: this.adapterCallback('saveCloudLevelProgress'),
+        saveSettings: this.adapterCallback('saveCloudSettings'),
         submitScore: this.adapterCallback('submitLeaderboardScore'),
         submitStars: platformFeatures.starsLeaderboard === false ? null : this.adapterCallback('submitStarsLeaderboard'),
+        syncPlatformLeaderboards: this.adapterCallback('syncProgressLeaderboards'),
         openLeaderboard: this.adapterCallback('openLeaderboard'),
         openXpLeaderboard: platformFeatures.xpLeaderboard === false ? null : this.adapterCallback('openXpLeaderboard'),
         openDeveloperGames: this.adapterCallback('openDeveloperGames'),
         loadGameOverLeaderboard: platformFeatures.gameOverLeaderboard === false ? null : this.adapterCallback('loadGameOverLeaderboard'),
         purchaseCoins: platformFeatures.paidCoinPacks === false ? null : this.adapterCallback('purchaseCoins'),
+        processPendingPurchases: platformFeatures.paidCoinPacks === false ? null : this.adapterCallback('processPendingPurchases'),
         showRewardedAd: this.adapterCallback('showRewardedAd'),
         isRewardedAdAvailable: this.adapterCallback('isRewardedAdAvailable'),
         showInterstitialAd: this.adapterCallback('showInterstitialAd')
@@ -80,6 +84,8 @@
       this.renderer = new CrystalMatchRenderer(this.canvas, this.game);
       this.input = new CrystalMatchInput(this.canvas, this.game, this.renderer);
       this.applyPerformanceProfile(true);
+      this.callAdapter('initializeCloudProgressFromGame');
+      this.callAdapter('syncProgressLeaderboards');
       if (platformFeatures.paidCoinPacks !== false) {
         this.callAdapter('loadCoinPurchaseCatalog');
         this.callAdapter('processPendingPurchases');
@@ -133,6 +139,7 @@
       this.callAdapter('flushCloudDailyBonus');
       this.callAdapter('flushCloudAdBonus');
       this.callAdapter('flushCloudLevelProgress');
+      this.callAdapter('flushCloudSettings');
     },
 
     bindInteractionGuards() {
