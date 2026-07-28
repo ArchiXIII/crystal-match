@@ -72,12 +72,48 @@
       } catch (error) {
         this.vkLaunchParams = null;
       }
+      await this.resizeDesktopVkWindow();
       if (window.CrystalMatchVkBackendClient) {
         this.backendClient = new window.CrystalMatchVkBackendClient({
           baseUrl: config.backendUrl,
           timeout: 3000,
           getLaunchParams: () => this.rawLaunchParams
         });
+      }
+    },
+
+    getVkPlatform() {
+      const params = new URLSearchParams(window.location.search || '');
+      return String(
+        (this.vkLaunchParams && this.vkLaunchParams.vk_platform) ||
+        params.get('vk_platform') ||
+        ''
+      ).toLowerCase();
+    },
+
+    async resizeDesktopVkWindow() {
+      if (!this.vkBridge || this.getVkPlatform() !== 'desktop_web') return false;
+      let platformConfig;
+      try {
+        platformConfig = await this.vkBridge.send('VKWebAppGetConfig');
+      } catch (error) {
+        this.warnPlatformIssue('Desktop config read failed', error);
+        return false;
+      }
+      const viewportHeight = Number(platformConfig && platformConfig.viewport_height);
+      if (!Number.isFinite(viewportHeight)) {
+        this.warnPlatformIssue('Desktop window resize failed', new Error('VK_VIEWPORT_HEIGHT_UNAVAILABLE'));
+        return false;
+      }
+      try {
+        await this.vkBridge.send('VKWebAppResizeWindow', {
+          width: 911,
+          height: Math.max(1, Math.floor(viewportHeight - 100))
+        });
+        return true;
+      } catch (error) {
+        this.warnPlatformIssue('Desktop window resize failed', error);
+        return false;
       }
     },
 
