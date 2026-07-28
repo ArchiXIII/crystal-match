@@ -12,12 +12,12 @@
     vkApiToken: '',
     vkApiTokenPromise: null,
     endlessScoreSubmitInFlight: null,
-    pendingEndlessScore: 0,
     bridgeListener: null,
     features: config.features || {},
     storageKey: config.storageKey || 'crystalProgress',
     purchaseEventsLocalKey: config.purchaseEventsLocalKey || 'crystal-match-vk-purchase-events',
     localBestScoreKey: config.localBestScoreKey || 'crystal-match-vk-best-score',
+    localSubmittedScoreKey: config.localSubmittedScoreKey || 'crystal-match-vk-endless-submitted-score',
     storageAvailable: false,
     cloudProgress: null,
     cloudDirty: false,
@@ -36,6 +36,20 @@
     purchaseAwaitingConfirmation: false,
     leaderboardSyncInFlight: null,
     lastLeaderboardSyncValues: '',
+
+    warnPlatformIssue(label, error) {
+      const message = error && typeof error.message === 'string' && /^(BACKEND|VK)_/.test(error.message)
+        ? error.message
+        : '';
+      const detail = error && (
+        error.status ||
+        error.error_type ||
+        (error.error_data && error.error_data.error_code) ||
+        message ||
+        error.name
+      );
+      console.warn('[Crystal Match VK] ' + label, detail || 'UNKNOWN_ERROR');
+    },
 
     async initPlatform() {
       this.rawLaunchParams = String(window.location.search || '').replace(/^\?/, '');
@@ -197,6 +211,7 @@
         const value = Number(window.localStorage.getItem(this.localBestScoreKey));
         return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
       } catch (error) {
+        this.warnPlatformIssue('Local best score read failed', error);
         return 0;
       }
     },
@@ -207,6 +222,43 @@
         window.localStorage.setItem(this.localBestScoreKey, String(value));
       } catch (error) {}
       return value;
+    },
+
+    loadLocalSubmittedScore() {
+      try {
+        const value = Number(window.localStorage.getItem(this.localSubmittedScoreKey));
+        return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+      } catch (error) {
+        this.warnPlatformIssue('Local submitted score read failed', error);
+        return 0;
+      }
+    },
+
+    saveLocalSubmittedScore(score) {
+      const value = Math.max(0, Math.floor(Number(score) || 0));
+      try {
+        window.localStorage.setItem(this.localSubmittedScoreKey, String(value));
+      } catch (error) {}
+      return value;
+    },
+
+    mergeEndlessScoreProgress(progress) {
+      const source = progress && typeof progress === 'object' ? progress : {};
+      const best = Math.max(
+        0,
+        Math.floor(Number(source.endlessBestScore) || 0),
+        this.loadLocalBestScore()
+      );
+      const submitted = Math.min(best, Math.max(
+        0,
+        Math.floor(Number(source.endlessSubmittedScore) || 0),
+        this.loadLocalSubmittedScore()
+      ));
+      source.endlessBestScore = best;
+      source.endlessSubmittedScore = submitted;
+      this.saveLocalBestScore(best);
+      this.saveLocalSubmittedScore(submitted);
+      return source;
     },
 
     normalizeLevelProgress(value) {
@@ -237,9 +289,13 @@
       const coins = Number(source.coins);
       const rankXp = Number(source.rankXp);
       const endlessBestScore = Number(source.endlessBestScore);
+      const endlessSubmittedScore = Number(source.endlessSubmittedScore);
       if (Number.isFinite(coins) && coins >= 0) progress.coins = Math.floor(coins);
       if (Number.isFinite(rankXp) && rankXp >= 0) progress.rankXp = Math.floor(rankXp);
       if (Number.isFinite(endlessBestScore) && endlessBestScore >= 0) progress.endlessBestScore = Math.floor(endlessBestScore);
+      if (Number.isFinite(endlessSubmittedScore) && endlessSubmittedScore >= 0) {
+        progress.endlessSubmittedScore = Math.floor(endlessSubmittedScore);
+      }
       if (source.dailyBonus && typeof source.dailyBonus === 'object') progress.dailyBonus = this.normalizeDailyBonus(source.dailyBonus);
       if (source.adBonus && typeof source.adBonus === 'object') progress.adBonus = this.normalizeAdBonus(source.adBonus);
       if (source.levelProgress && typeof source.levelProgress === 'object') progress.levelProgress = this.normalizeLevelProgress(source.levelProgress);
@@ -265,23 +321,19 @@
       try {
         const stored = await this.readStoredProgress();
         this.storageAvailable = true;
-        this.cloudProgress = stored.progress;
-        this.cloudProgress.endlessBestScore = Math.max(
-          Math.max(0, Math.floor(Number(this.cloudProgress.endlessBestScore) || 0)),
-          this.loadLocalBestScore()
-        );
+        this.cloudProgress = this.mergeEndlessScoreProgress(stored.progress);
         this.appliedPurchaseEventIds = stored.raw
           ? this.normalizePurchaseEventIds(this.cloudProgress.appliedPurchaseEventIds)
           : this.loadLocalPurchaseEventIds();
         this.cloudProgress.appliedPurchaseEventIds = this.appliedPurchaseEventIds.slice();
         this.saveLocalPurchaseEventIds();
-        this.saveLocalBestScore(this.cloudProgress.endlessBestScore);
         this.lastStoredValue = stored.raw;
         return Object.assign({
           cloudDataLoaded: true,
           coinPurchaseTokens: []
-        }, stored.progress);
+        }, this.cloudProgress);
       } catch (error) {
+        this.warnPlatformIssue('Progress read failed', error);
         this.storageAvailable = false;
         this.cloudProgress = null;
         return {};
@@ -295,6 +347,7 @@
         coins: Math.max(0, Math.floor(Number.isFinite(source.coins) ? source.coins : (game ? game.coins : 5000))),
         rankXp: Math.max(0, Math.floor(Number.isFinite(source.rankXp) ? source.rankXp : (game ? game.rankXp : 0))),
         endlessBestScore: Math.max(0, Math.floor(Number(source.endlessBestScore) || 0)),
+        endlessSubmittedScore: Math.max(0, Math.floor(Number(source.endlessSubmittedScore) || 0)),
         dailyBonus: this.normalizeDailyBonus(source.dailyBonus || (game && game.dailyBonus)),
         adBonus: this.normalizeAdBonus(source.adBonus || (game && game.adBonus)),
         settings: this.normalizeSettings(source.settings || (game && game.settings)),
@@ -314,11 +367,7 @@
       if (!this.game || !this.isServerBackedPlayer()) return false;
       const source = this.cloudProgress || {};
       this.applyStoredProgress(source);
-      this.cloudProgress = this.buildCloudProgress();
-      this.cloudProgress.endlessBestScore = Math.max(
-        this.cloudProgress.endlessBestScore,
-        this.loadLocalBestScore()
-      );
+      this.cloudProgress = this.mergeEndlessScoreProgress(this.buildCloudProgress());
       this.cloudProgress.boosters = this.normalizeBoosters(source.boosters);
       this.cloudProgress.appliedPurchaseEventIds = this.normalizePurchaseEventIds(this.appliedPurchaseEventIds);
       this.markCloudDirty(0);
@@ -504,6 +553,9 @@
       if (Number.isFinite(progress.endlessBestScore)) {
         this.saveLocalBestScore(progress.endlessBestScore);
       }
+      if (Number.isFinite(progress.endlessSubmittedScore)) {
+        this.saveLocalSubmittedScore(progress.endlessSubmittedScore);
+      }
       if (Array.isArray(progress.appliedPurchaseEventIds)) {
         this.appliedPurchaseEventIds = this.normalizePurchaseEventIds(progress.appliedPurchaseEventIds);
         this.saveLocalPurchaseEventIds();
@@ -514,11 +566,13 @@
       if (!this.isServerBackedPlayer() || this.cloudDirty || this.cloudSaveInFlight) return;
       try {
         const stored = await this.readStoredProgress();
-        this.cloudProgress = stored.progress;
+        this.cloudProgress = this.mergeEndlessScoreProgress(stored.progress);
         this.lastStoredValue = stored.raw;
         this.appliedPurchaseEventIds = this.normalizePurchaseEventIds(stored.progress.appliedPurchaseEventIds);
-        this.applyStoredProgress(stored.progress);
-      } catch (error) {}
+        this.applyStoredProgress(this.cloudProgress);
+      } catch (error) {
+        this.warnPlatformIssue('Progress refresh failed', error);
+      }
     },
 
     submitLeaderboardScore(score) {
@@ -528,7 +582,6 @@
       const current = Math.max(0, Math.floor(Number(this.cloudProgress.endlessBestScore) || 0));
       if (value <= current) return false;
       this.cloudProgress.endlessBestScore = value;
-      this.pendingEndlessScore = Math.max(this.pendingEndlessScore, value);
       this.saveLocalBestScore(value);
       this.markCloudDirty(450);
       return true;

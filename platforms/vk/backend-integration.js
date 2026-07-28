@@ -7,9 +7,7 @@
     },
 
     syncProgressLeaderboards() {
-      if (this.game && this.game.gameMode === 'endless' && this.game.gameOver) {
-        this.publishVkEndlessScore(this.pendingEndlessScore);
-      }
+      this.retryPendingEndlessScore();
       if (!this.backendClient || !this.game) return Promise.resolve(false);
       const totalStars = this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
       const totalXp = Math.max(0, Math.floor(Number(this.game.rankXp) || 0));
@@ -157,32 +155,74 @@
     },
 
     async loadVkEndlessLeaderboard() {
-      if (!this.vkBridge) throw new Error('VK_UNAVAILABLE');
-      const token = await this.getVkApiToken();
-      const platformConfig = window.CrystalMatchPlatformConfig || {};
-      const response = await this.vkBridge.send('VKWebAppCallAPIMethod', {
-        method: 'apps.getLeaderboard',
-        params: {
-          type: 'points',
-          global: 1,
-          extended: 1,
-          access_token: token,
-          v: String(platformConfig.apiVersion || '5.199')
-        }
+      if (!this.vkBridge) {
+        const error = new Error('VK_UNAVAILABLE');
+        this.warnPlatformIssue('Endless leaderboard read failed', error);
+        throw error;
+      }
+      if (!await this.retryPendingEndlessScore()) {
+        throw new Error('VK_ENDLESS_SCORE_SYNC_FAILED');
+      }
+      try {
+        const token = await this.getVkApiToken();
+        const platformConfig = window.CrystalMatchPlatformConfig || {};
+        const response = await this.vkBridge.send('VKWebAppCallAPIMethod', {
+          method: 'apps.getLeaderboard',
+          params: {
+            type: 'points',
+            global: 1,
+            extended: 1,
+            access_token: token,
+            v: String(platformConfig.apiVersion || '5.199')
+          }
+        });
+        return this.mapVkEndlessLeaderboard(response);
+      } catch (error) {
+        this.warnPlatformIssue('Endless leaderboard read failed', error);
+        throw error;
+      }
+    },
+
+    retryPendingEndlessScore() {
+      const progress = this.mergeEndlessScoreProgress(this.cloudProgress || {});
+      this.cloudProgress = progress;
+      if (progress.endlessBestScore <= progress.endlessSubmittedScore) return Promise.resolve(true);
+      return this.publishVkEndlessScore(progress.endlessBestScore).then((sent) => {
+        if (!sent) return false;
+        const current = this.mergeEndlessScoreProgress(this.cloudProgress || {});
+        this.cloudProgress = current;
+        return current.endlessBestScore <= current.endlessSubmittedScore
+          ? true
+          : this.publishVkEndlessScore(current.endlessBestScore);
       });
-      return this.mapVkEndlessLeaderboard(response);
     },
 
     publishVkEndlessScore(score) {
-      const value = Math.max(0, Math.floor(Number(score) || 0));
+      const progress = this.mergeEndlessScoreProgress(this.cloudProgress || {});
+      this.cloudProgress = progress;
+      const value = Math.max(
+        Math.floor(Number(score) || 0),
+        progress.endlessBestScore
+      );
+      if (value <= progress.endlessSubmittedScore) return Promise.resolve(true);
       if (!this.backendClient || !value) return Promise.resolve(false);
       if (this.endlessScoreSubmitInFlight) return this.endlessScoreSubmitInFlight;
       this.endlessScoreSubmitInFlight = this.backendClient.submitVkEndlessScore(value)
         .then(() => {
-          if (this.pendingEndlessScore <= value) this.pendingEndlessScore = 0;
+          if (!this.cloudProgress) this.cloudProgress = {};
+          this.cloudProgress.endlessSubmittedScore = Math.max(
+            Math.floor(Number(this.cloudProgress.endlessSubmittedScore) || 0),
+            value
+          );
+          this.saveLocalSubmittedScore(this.cloudProgress.endlessSubmittedScore);
+          this.markCloudDirty(0);
+          this.flushCloudProgress();
           return true;
         })
-        .catch(() => false)
+        .catch((error) => {
+          this.warnPlatformIssue('Endless score submit failed', error);
+          return false;
+        })
         .finally(() => {
           this.endlessScoreSubmitInFlight = null;
       });
