@@ -146,7 +146,7 @@
         const entry = item && typeof item === 'object' ? item : {};
         const entryUserId = String(entry.user_id || entry.userId || '');
         const rank = Math.max(1, Math.floor(Number(entry.rank || entry.place || index + 1)));
-        const score = Math.max(0, Math.floor(Number(entry.score) || 0));
+        const score = Math.max(0, Math.floor(Number(entry.points !== undefined ? entry.points : entry.score) || 0));
         return {
           rank,
           name: names.get(entryUserId) || this.t('leaderboard.player'),
@@ -163,7 +163,7 @@
       const response = await this.vkBridge.send('VKWebAppCallAPIMethod', {
         method: 'apps.getLeaderboard',
         params: {
-          type: 'score',
+          type: 'points',
           global: 1,
           extended: 1,
           access_token: token,
