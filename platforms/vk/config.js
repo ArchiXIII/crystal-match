@@ -14,7 +14,7 @@
       nativeLeaderboard: false,
       nativeEndlessLeaderboard: false,
       starsLeaderboard: true,
-      xpLeaderboard: true,
+      xpLeaderboard: false,
       gameOverLeaderboard: true,
       endlessGameOverLeaderboard: false,
       paidCoinPacks: true,

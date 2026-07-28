@@ -72,10 +72,9 @@
       }
     }
 
-    syncLeaderboards(totalStars, totalXp, playerName) {
+    syncLeaderboards(totalStars, playerName) {
       const body = {
-        totalStars: Math.max(0, Math.floor(Number(totalStars) || 0)),
-        totalXp: Math.max(0, Math.floor(Number(totalXp) || 0))
+        totalStars: Math.max(0, Math.floor(Number(totalStars) || 0))
       };
       const name = typeof playerName === 'string' ? playerName.trim() : '';
       if (name) body.playerName = name;
@@ -85,11 +84,10 @@
       });
     }
 
-    getLeaderboard(type, limit, offset) {
-      const board = type === 'xp' ? 'xp' : 'stars';
+    getStarsLeaderboard(limit, offset) {
       const count = Math.max(1, Math.min(100, Math.floor(Number(limit) || 20)));
       const start = Math.max(0, Math.floor(Number(offset) || 0));
-      return this.request('/v1/leaderboards/' + board + '?limit=' + count + '&offset=' + start);
+      return this.request('/v1/leaderboards/stars?limit=' + count + '&offset=' + start);
     }
 
     submitVkEndlessScore(score) {

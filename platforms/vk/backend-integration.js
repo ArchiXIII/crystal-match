@@ -10,15 +10,14 @@
       this.retryPendingEndlessScore();
       if (!this.backendClient || !this.game) return Promise.resolve(false);
       const totalStars = this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
-      const totalXp = Math.max(0, Math.floor(Number(this.game.rankXp) || 0));
       const user = this.vkUser && typeof this.vkUser === 'object' ? this.vkUser : {};
       const firstName = typeof user.first_name === 'string' ? user.first_name.trim() : '';
       const lastName = typeof user.last_name === 'string' ? user.last_name.trim() : '';
       const playerName = [firstName, lastName].filter(Boolean).join(' ');
-      const values = totalStars + ':' + totalXp + ':' + playerName;
+      const values = totalStars + ':' + playerName;
       if (this.leaderboardSyncInFlight) return this.leaderboardSyncInFlight;
       if (values === this.lastLeaderboardSyncValues) return Promise.resolve(true);
-      this.leaderboardSyncInFlight = this.backendClient.syncLeaderboards(totalStars, totalXp, playerName)
+      this.leaderboardSyncInFlight = this.backendClient.syncLeaderboards(totalStars, playerName)
         .then(() => {
           this.lastLeaderboardSyncValues = values;
           return true;
@@ -53,7 +52,7 @@
       return result;
     },
 
-    mapBackendLeaderboard(payload, type) {
+    mapBackendLeaderboard(payload) {
       const userId = String(
         (this.vkUser && this.vkUser.id) ||
         (this.vkLaunchParams && this.vkLaunchParams.vk_user_id) ||
@@ -73,7 +72,7 @@
           ? entry.score
           : (entry.value !== undefined
             ? entry.value
-            : (type === 'xp' ? entry.totalXp : entry.totalStars));
+            : entry.totalStars);
         const score = Math.max(0, Math.floor(Number(scoreSource) || 0));
         const name = String(
           entry.name ||
@@ -93,12 +92,12 @@
       return result.sort((a, b) => a.rank - b.rank);
     },
 
-    async loadBackendLeaderboard(type) {
+    async loadStarsLeaderboard() {
       if (!this.backendClient) throw new Error('BACKEND_UNAVAILABLE');
       const synced = await this.syncProgressLeaderboards();
       if (!synced) throw new Error('BACKEND_UNAVAILABLE');
-      const payload = await this.backendClient.getLeaderboard(type, 20, 0);
-      return this.mapBackendLeaderboard(payload, type);
+      const payload = await this.backendClient.getStarsLeaderboard(20, 0);
+      return this.mapBackendLeaderboard(payload);
     },
 
     getVkApiToken() {
@@ -235,7 +234,7 @@
       if (type === 'stars') {
         if (!this.game) return false;
         try {
-          this.game.setLeaderboardEntries(await this.loadBackendLeaderboard('stars'));
+          this.game.setLeaderboardEntries(await this.loadStarsLeaderboard());
           return true;
         } catch (error) {
           this.game.setLeaderboardError(this.t('leaderboard.backendUnavailable'));
@@ -260,21 +259,10 @@
       }
     },
 
-    async openXpLeaderboard() {
-      if (!this.game) return false;
-      try {
-        this.game.setXpLeaderboardEntries(await this.loadBackendLeaderboard('xp'));
-        return true;
-      } catch (error) {
-        this.game.setXpLeaderboardError(this.t('leaderboard.backendUnavailable'));
-        return false;
-      }
-    },
-
     async loadGameOverLeaderboard(score, type) {
       if (!this.game || type !== 'stars') return false;
       try {
-        this.game.setGameOverLeaderboardEntries(await this.loadBackendLeaderboard('stars'));
+        this.game.setGameOverLeaderboardEntries(await this.loadStarsLeaderboard());
         return true;
       } catch (error) {
         this.game.setGameOverLeaderboardError(this.t('leaderboard.backendUnavailable'));
