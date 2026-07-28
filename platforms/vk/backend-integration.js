@@ -7,6 +7,9 @@
     },
 
     syncProgressLeaderboards() {
+      if (this.game && this.game.gameMode === 'endless' && this.game.gameOver) {
+        this.publishNativeEndlessScore(this.pendingNativeLeaderboardScore);
+      }
       if (!this.backendClient || !this.game) return Promise.resolve(false);
       const totalStars = this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
       const totalXp = Math.max(0, Math.floor(Number(this.game.rankXp) || 0));
@@ -100,6 +103,96 @@
       return this.mapBackendLeaderboard(payload, type);
     },
 
+    getVkApiToken() {
+      if (this.vkApiToken) return Promise.resolve(this.vkApiToken);
+      if (this.vkApiTokenPromise) return this.vkApiTokenPromise;
+      if (!this.vkBridge) return Promise.reject(new Error('VK_UNAVAILABLE'));
+      const platformConfig = window.CrystalMatchPlatformConfig || {};
+      const appId = Math.max(0, Math.floor(Number(platformConfig.appId) || 0));
+      if (!appId) return Promise.reject(new Error('VK_APP_ID_UNAVAILABLE'));
+      this.vkApiTokenPromise = this.vkBridge.send('VKWebAppGetAuthToken', {
+        app_id: appId,
+        scope: ''
+      }).then((response) => {
+        const token = String(response && response.access_token || '');
+        if (!token) throw new Error('VK_TOKEN_UNAVAILABLE');
+        this.vkApiToken = token;
+        return token;
+      }).finally(() => {
+        this.vkApiTokenPromise = null;
+      });
+      return this.vkApiTokenPromise;
+    },
+
+    mapVkEndlessLeaderboard(payload) {
+      const source = payload && payload.response && typeof payload.response === 'object'
+        ? payload.response
+        : payload;
+      const items = source && Array.isArray(source.items) ? source.items : [];
+      const profiles = source && Array.isArray(source.profiles) ? source.profiles : [];
+      const names = new Map();
+      profiles.forEach((profile) => {
+        if (!profile || typeof profile !== 'object') return;
+        const firstName = typeof profile.first_name === 'string' ? profile.first_name.trim() : '';
+        const lastName = typeof profile.last_name === 'string' ? profile.last_name.trim() : '';
+        names.set(String(profile.id || ''), [firstName, lastName].filter(Boolean).join(' '));
+      });
+      const userId = String(
+        (this.vkUser && this.vkUser.id) ||
+        (this.vkLaunchParams && this.vkLaunchParams.vk_user_id) ||
+        ''
+      );
+      return items.map((item, index) => {
+        const entry = item && typeof item === 'object' ? item : {};
+        const entryUserId = String(entry.user_id || entry.userId || '');
+        const rank = Math.max(1, Math.floor(Number(entry.rank || entry.place || index + 1)));
+        const score = Math.max(0, Math.floor(Number(entry.score) || 0));
+        return {
+          rank,
+          name: names.get(entryUserId) || this.t('leaderboard.player'),
+          score,
+          isPlayer: !!(userId && entryUserId === userId)
+        };
+      });
+    },
+
+    async loadVkEndlessLeaderboard() {
+      if (!this.vkBridge) throw new Error('VK_UNAVAILABLE');
+      const token = await this.getVkApiToken();
+      const platformConfig = window.CrystalMatchPlatformConfig || {};
+      const response = await this.vkBridge.send('VKWebAppCallAPIMethod', {
+        method: 'apps.getLeaderboard',
+        params: {
+          type: 'score',
+          global: 1,
+          extended: 1,
+          access_token: token,
+          v: String(platformConfig.apiVersion || '5.199')
+        }
+      });
+      return this.mapVkEndlessLeaderboard(response);
+    },
+
+    publishNativeEndlessScore(score) {
+      const value = Math.max(0, Math.floor(Number(score) || 0));
+      if (!this.vkBridge || !value || value <= this.lastNativeLeaderboardScore) {
+        return Promise.resolve(false);
+      }
+      if (this.nativeLeaderboardSubmitInFlight) return this.nativeLeaderboardSubmitInFlight;
+      this.pauseAudioForSystem();
+      this.nativeLeaderboardSubmitInFlight = this.vkBridge.send('VKWebAppShowLeaderBoardBox', {
+        user_result: value
+      }).then(() => {
+        this.lastNativeLeaderboardScore = value;
+        if (this.pendingNativeLeaderboardScore <= value) this.pendingNativeLeaderboardScore = 0;
+        return true;
+      }).catch(() => false).finally(() => {
+        this.nativeLeaderboardSubmitInFlight = null;
+        this.resumeAudioFromSystem();
+      });
+      return this.nativeLeaderboardSubmitInFlight;
+    },
+
     async openLeaderboard(type) {
       if (type === 'stars') {
         if (!this.game) return false;
@@ -111,7 +204,7 @@
           return false;
         }
       }
-      if (!this.vkBridge) return false;
+      if (!this.game) return false;
       const cloudBest = this.cloudProgress ? Number(this.cloudProgress.endlessBestScore) : 0;
       const score = Math.max(
         0,
@@ -120,14 +213,12 @@
         Math.floor(Number(this.game && this.game.score) || 0)
       );
       this.submitLeaderboardScore(score);
-      this.pauseAudioForSystem();
       try {
-        await this.vkBridge.send('VKWebAppShowLeaderBoardBox', { user_result: score });
+        this.game.setLeaderboardEntries(await this.loadVkEndlessLeaderboard());
         return true;
       } catch (error) {
+        this.game.setLeaderboardError(this.t('leaderboard.unavailable'));
         return false;
-      } finally {
-        this.resumeAudioFromSystem();
       }
     },
 
