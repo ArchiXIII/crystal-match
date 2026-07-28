@@ -68,6 +68,15 @@
       return this.request('/v1/leaderboards/' + board + '?limit=' + count + '&offset=' + start);
     }
 
+    submitVkEndlessScore(score) {
+      return this.request('/v1/vk/endless-score', {
+        method: 'POST',
+        body: {
+          score: Math.max(0, Math.floor(Number(score) || 0))
+        }
+      });
+    }
+
     getPendingPurchaseEvents() {
       return this.request('/v1/purchase-events/pending');
     }

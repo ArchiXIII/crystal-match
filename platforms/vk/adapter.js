@@ -11,9 +11,8 @@
     backendClient: null,
     vkApiToken: '',
     vkApiTokenPromise: null,
-    nativeLeaderboardSubmitInFlight: null,
-    lastNativeLeaderboardScore: 0,
-    pendingNativeLeaderboardScore: 0,
+    endlessScoreSubmitInFlight: null,
+    pendingEndlessScore: 0,
     bridgeListener: null,
     features: config.features || {},
     storageKey: config.storageKey || 'crystalProgress',
@@ -529,7 +528,7 @@
       const current = Math.max(0, Math.floor(Number(this.cloudProgress.endlessBestScore) || 0));
       if (value <= current) return false;
       this.cloudProgress.endlessBestScore = value;
-      this.pendingNativeLeaderboardScore = Math.max(this.pendingNativeLeaderboardScore, value);
+      this.pendingEndlessScore = Math.max(this.pendingEndlessScore, value);
       this.saveLocalBestScore(value);
       this.markCloudDirty(450);
       return true;

@@ -8,7 +8,7 @@
 
     syncProgressLeaderboards() {
       if (this.game && this.game.gameMode === 'endless' && this.game.gameOver) {
-        this.publishNativeEndlessScore(this.pendingNativeLeaderboardScore);
+        this.publishVkEndlessScore(this.pendingEndlessScore);
       }
       if (!this.backendClient || !this.game) return Promise.resolve(false);
       const totalStars = this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
@@ -173,24 +173,20 @@
       return this.mapVkEndlessLeaderboard(response);
     },
 
-    publishNativeEndlessScore(score) {
+    publishVkEndlessScore(score) {
       const value = Math.max(0, Math.floor(Number(score) || 0));
-      if (!this.vkBridge || !value || value <= this.lastNativeLeaderboardScore) {
-        return Promise.resolve(false);
-      }
-      if (this.nativeLeaderboardSubmitInFlight) return this.nativeLeaderboardSubmitInFlight;
-      this.pauseAudioForSystem();
-      this.nativeLeaderboardSubmitInFlight = this.vkBridge.send('VKWebAppShowLeaderBoardBox', {
-        user_result: value
-      }).then(() => {
-        this.lastNativeLeaderboardScore = value;
-        if (this.pendingNativeLeaderboardScore <= value) this.pendingNativeLeaderboardScore = 0;
-        return true;
-      }).catch(() => false).finally(() => {
-        this.nativeLeaderboardSubmitInFlight = null;
-        this.resumeAudioFromSystem();
+      if (!this.backendClient || !value) return Promise.resolve(false);
+      if (this.endlessScoreSubmitInFlight) return this.endlessScoreSubmitInFlight;
+      this.endlessScoreSubmitInFlight = this.backendClient.submitVkEndlessScore(value)
+        .then(() => {
+          if (this.pendingEndlessScore <= value) this.pendingEndlessScore = 0;
+          return true;
+        })
+        .catch(() => false)
+        .finally(() => {
+          this.endlessScoreSubmitInFlight = null;
       });
-      return this.nativeLeaderboardSubmitInFlight;
+      return this.endlessScoreSubmitInFlight;
     },
 
     async openLeaderboard(type) {
