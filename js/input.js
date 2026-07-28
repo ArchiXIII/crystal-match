@@ -234,12 +234,14 @@
         this.reset();
         return;
       }
-      const ourGamesButton = this.renderer.pointToOurGamesButton(event.clientX, event.clientY);
-      if (ourGamesButton) {
-        this.game.playSound('button');
-        this.game.openDeveloperGames();
-        this.reset();
-        return;
+      if (this.game.platformFeatures.developerGames !== false) {
+        const ourGamesButton = this.renderer.pointToOurGamesButton(event.clientX, event.clientY);
+        if (ourGamesButton) {
+          this.game.playSound('button');
+          this.game.openDeveloperGames();
+          this.reset();
+          return;
+        }
       }
       const leaderboardButton = this.renderer.pointToLeaderboardButton(event.clientX, event.clientY);
       if (leaderboardButton) {

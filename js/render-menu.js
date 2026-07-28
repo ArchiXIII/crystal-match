@@ -70,15 +70,17 @@
       this.dailyBonusButtonRect = { x: buttonX, y: dailyY, w: buttonW, h: dailyH };
       this.drawDailyBonusButton(ctx, buttonX, dailyY, buttonW, dailyH);
 
-      const secondaryH = buttonH;
-      const secondaryY = dailyY + dailyH + (menuTight ? 10 : 12);
-      this.ourGamesButtonRect = { x: buttonX, y: secondaryY, w: buttonW, h: secondaryH };
-      this.drawMenuButton(ctx, buttonX, secondaryY, buttonW, secondaryH, 'secondary');
+      if (this.game.platformFeatures.developerGames !== false) {
+        const secondaryH = buttonH;
+        const secondaryY = dailyY + dailyH + (menuTight ? 10 : 12);
+        this.ourGamesButtonRect = { x: buttonX, y: secondaryY, w: buttonW, h: secondaryH };
+        this.drawMenuButton(ctx, buttonX, secondaryY, buttonW, secondaryH, 'secondary');
 
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#fff4d6';
-      ctx.font = '900 ' + (menuTight ? 15 : 16) + 'px Arial';
-      ctx.fillText(this.t('menu.ourGames'), cx, secondaryY + secondaryH / 2 + 1);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fff4d6';
+        ctx.font = '900 ' + (menuTight ? 15 : 16) + 'px Arial';
+        ctx.fillText(this.t('menu.ourGames'), cx, secondaryY + secondaryH / 2 + 1);
+      }
       if (this.game.levelSelectOpen) this.drawLevelSelect(ctx);
       ctx.restore();
     };
