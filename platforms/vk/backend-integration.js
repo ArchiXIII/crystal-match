@@ -154,7 +154,8 @@
     },
 
     getPurchaseProduct(packId) {
-      const products = config.products || {};
+      const platformConfig = window.CrystalMatchPlatformConfig || {};
+      const products = platformConfig.products || {};
       const compactId = String(packId || '').replace('coins_', 'coins');
       const product = products[packId] || products[compactId];
       if (!product) return null;
