@@ -35,6 +35,30 @@
         if (!response.ok) {
           const error = new Error('BACKEND_HTTP_' + response.status);
           error.status = response.status;
+          try {
+            const text = await response.text();
+            const payload = text ? JSON.parse(text) : null;
+            const source = payload && typeof payload === 'object' ? payload : {};
+            const nested = source.error && typeof source.error === 'object' ? source.error : {};
+            const code = Number(
+              source.vkErrorCode ||
+              source.errorCode ||
+              source.error_code ||
+              nested.error_code ||
+              nested.code
+            );
+            const message = String(
+              source.message ||
+              source.errorMessage ||
+              source.error_msg ||
+              nested.error_msg ||
+              nested.message ||
+              ''
+            );
+            if (code === 7 && /cannot add points to not verified app/i.test(message)) {
+              error.safeCode = 'VK_API_7_CANNOT_ADD_POINTS_TO_NOT_VERIFIED_APP';
+            }
+          } catch (parseError) {}
           throw error;
         }
         if (response.status === 204) return null;

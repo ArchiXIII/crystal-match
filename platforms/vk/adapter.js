@@ -42,6 +42,7 @@
         ? error.message
         : '';
       const detail = error && (
+        error.safeCode ||
         error.status ||
         error.error_type ||
         (error.error_data && error.error_data.error_code) ||

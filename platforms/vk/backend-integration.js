@@ -160,8 +160,10 @@
         this.warnPlatformIssue('Endless leaderboard read failed', error);
         throw error;
       }
-      if (!await this.retryPendingEndlessScore()) {
-        throw new Error('VK_ENDLESS_SCORE_SYNC_FAILED');
+      try {
+        await this.retryPendingEndlessScore();
+      } catch (error) {
+        this.warnPlatformIssue('Endless score submit failed', error);
       }
       try {
         const token = await this.getVkApiToken();
