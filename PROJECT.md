@@ -141,15 +141,15 @@ HTML5 Canvas match-3 игра Milevora team для браузерных игро
 
 Пути файлов внутри ZIP всегда записываются через `/`. После сборки проверяются структура архива и наличие обязательных файлов.
 
-Workflow `.github/workflows/deploy-vk-pages.yml` собирает VK-версию из `master` и публикует только `output/vk` на GitHub Pages.
+Workflow `.github/workflows/deploy-ok-test-pages.yml` собирает текущую тестовую версию из `main` командой VK-сборки и публикует только `output/vk` на отдельном GitHub Pages.
 
 Перед релизом проверяется консоль браузера: в актуальной платформенной сборке не должно быть ошибок и вызовов устаревших методов SDK.
 
 ## Git
 
-- публичный репозиторий: `https://github.com/ArchiXIII/crystal-match`;
-- основная ветка: `master`;
-- ветка мультиплатформенной разработки: `codex/multi-platform`.
+- публичный тестовый репозиторий: `https://github.com/ArchiXIII/crystal-match-ok-test`;
+- основная ветка: `main`;
+- `origin` не должен указывать на рабочий репозиторий `ArchiXIII/crystal-match`.
 
 Для возврата к сохранённой версии Яндекса:
 
