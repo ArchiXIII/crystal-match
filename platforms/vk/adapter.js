@@ -19,6 +19,7 @@
     localBestScoreKey: config.localBestScoreKey || 'crystal-match-vk-best-score',
     localSubmittedScoreKey: config.localSubmittedScoreKey || 'crystal-match-vk-endless-submitted-score',
     storageAvailable: false,
+    okEndlessScoreSubmitInFlight: null,
     cloudProgress: null,
     cloudDirty: false,
     cloudRevision: 0,
@@ -36,10 +37,11 @@
     purchaseAwaitingConfirmation: false,
     leaderboardSyncInFlight: null,
     lastLeaderboardSyncValues: '',
-    okFapiReady: false,
-    okFapiPromise: null,
-    okApiCallbackBound: false,
-    previousOkApiCallback: null,
+    okPaymentOrigin: '',
+    okPaymentEventsBound: false,
+    okPaymentResolve: null,
+    okPaymentTimer: null,
+    okRewardCoinSyncTimer: null,
 
     warnPlatformIssue(label, error) {
       const message = error && typeof error.message === 'string' && /^(BACKEND|VK|OK)_/.test(error.message)
@@ -77,8 +79,7 @@
         this.vkLaunchParams = null;
       }
       if (this.isOkClient()) {
-        this.features.nativeEndlessLeaderboard = true;
-        await this.initOkFapi();
+        this.bindOkPaymentEvents();
       } else {
         await this.resizeDesktopVkWindow();
       }
@@ -100,83 +101,97 @@
       ).toLowerCase() === 'ok';
     },
 
-    loadOkFapiScript() {
-      if (window.FAPI) return Promise.resolve(window.FAPI);
-      if (this.okFapiPromise) return this.okFapiPromise;
-      this.okFapiPromise = new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://api.ok.ru/js/fapi5.js';
-        script.async = true;
-        script.onload = () => resolve(window.FAPI || null);
-        script.onerror = () => reject(new Error('OK_FAPI_LOAD_FAILED'));
-        document.head.appendChild(script);
-      });
-      return this.okFapiPromise;
-    },
-
-    bindOkApiCallback() {
-      if (this.okApiCallbackBound) return;
-      this.okApiCallbackBound = true;
-      this.previousOkApiCallback = typeof window.API_callback === 'function'
-        ? window.API_callback
-        : null;
-      window.API_callback = (method, result, data) => {
-        if (this.previousOkApiCallback) {
-          try {
-            this.previousOkApiCallback(method, result, data);
-          } catch (error) {}
-        }
-        if (this.handleOkApiCallback) this.handleOkApiCallback(method, result, data);
-      };
-    },
-
-    async initOkFapi() {
-      let fapi;
-      try {
-        fapi = await this.loadOkFapiScript();
-      } catch (error) {
-        this.warnPlatformIssue('OK FAPI load failed', error);
-        return false;
+    resolveOkPaymentOrigin() {
+      const candidates = [];
+      if (window.location && window.location.ancestorOrigins && window.location.ancestorOrigins.length) {
+        candidates.push(window.location.ancestorOrigins[0]);
       }
-      if (!fapi || !fapi.Util || typeof fapi.Util.getRequestParameters !== 'function' || typeof fapi.init !== 'function') {
-        this.warnPlatformIssue('OK FAPI unavailable', new Error('OK_FAPI_UNAVAILABLE'));
-        return false;
-      }
-      this.bindOkApiCallback();
-      let params;
-      try {
-        params = fapi.Util.getRequestParameters() || {};
-      } catch (error) {
-        this.warnPlatformIssue('OK FAPI parameters unavailable', error);
-        return false;
-      }
-      const apiServer = String(params.api_server || '');
-      const apiConnection = String(params.apiconnection || '');
-      if (!apiServer || !apiConnection) {
-        this.warnPlatformIssue('OK FAPI parameters unavailable', new Error('OK_FAPI_PARAMS_UNAVAILABLE'));
-        return false;
-      }
-      return new Promise((resolve) => {
+      if (document.referrer) candidates.push(document.referrer);
+      for (const candidate of candidates) {
         try {
-          fapi.init(apiServer, apiConnection, () => {
-            this.okFapiReady = true;
-            resolve(true);
-          }, (error) => {
-            this.warnPlatformIssue('OK FAPI initialization failed', error);
-            resolve(false);
-          });
+          const url = new URL(candidate);
+          if (url.protocol === 'https:' && (url.hostname === 'ok.ru' || url.hostname.endsWith('.ok.ru'))) {
+            return url.origin;
+          }
+        } catch (error) {}
+      }
+      return 'https://ok.ru';
+    },
+
+    bindOkPaymentEvents() {
+      if (this.okPaymentEventsBound) return;
+      this.okPaymentEventsBound = true;
+      this.okPaymentOrigin = this.resolveOkPaymentOrigin();
+      window.addEventListener('message', (event) => {
+        if (event.source !== window.parent || event.origin !== this.okPaymentOrigin || typeof event.data !== 'string') return;
+        const raw = event.data.indexOf('__FAPI__') === 0 ? event.data.slice(8) : event.data;
+        const parts = raw.split('$');
+        if (parts.length < 2) return;
+        let method;
+        let result;
+        try {
+          method = decodeURIComponent(parts[0]);
+          result = decodeURIComponent(parts[1]);
         } catch (error) {
-          this.warnPlatformIssue('OK FAPI initialization failed', error);
+          this.warnPlatformIssue('OK payment response decode failed', error);
+          return;
+        }
+        if (method !== 'showPayment' || !this.okPaymentResolve) return;
+        const resolve = this.okPaymentResolve;
+        this.okPaymentResolve = null;
+        if (this.okPaymentTimer) {
+          clearTimeout(this.okPaymentTimer);
+          this.okPaymentTimer = null;
+        }
+        const status = String(result || '').toLowerCase();
+        if (status !== 'ok' && status !== 'success') {
+          this.warnPlatformIssue('OK payment was not completed', new Error('OK_PAYMENT_' + (status || 'UNKNOWN').toUpperCase()));
+          resolve(false);
+          return;
+        }
+        resolve(true);
+      });
+    },
+
+    showOkPaymentDialog(name, description, productCode, price) {
+      if (!this.isOkClient() || window.parent === window || this.okPaymentResolve) {
+        this.warnPlatformIssue('OK payment window unavailable', new Error('OK_PAYMENT_UNAVAILABLE'));
+        return Promise.resolve(false);
+      }
+      this.bindOkPaymentEvents();
+      const args = [
+        'showPayment',
+        String(name || ''),
+        String(description || ''),
+        String(productCode || ''),
+        String(Math.max(0, Math.floor(Number(price) || 0))),
+        '',
+        '',
+        'ok',
+        'true'
+      ];
+      return new Promise((resolve) => {
+        this.okPaymentResolve = resolve;
+        this.okPaymentTimer = setTimeout(() => {
+          if (this.okPaymentResolve !== resolve) return;
+          this.okPaymentResolve = null;
+          this.okPaymentTimer = null;
+          this.warnPlatformIssue('OK payment response timeout', new Error('OK_PAYMENT_TIMEOUT'));
+          resolve(false);
+        }, 300000);
+        try {
+          window.parent.postMessage(
+            '__FAPI__' + args.map((value) => encodeURIComponent(value)).join('$'),
+            this.okPaymentOrigin
+          );
+        } catch (error) {
+          clearTimeout(this.okPaymentTimer);
+          this.okPaymentTimer = null;
+          this.okPaymentResolve = null;
+          this.warnPlatformIssue('OK payment window failed', error);
           resolve(false);
         }
       });
-    },
-
-    getOkFapi() {
-      return this.okFapiReady && window.FAPI && window.FAPI.UI &&
-        typeof window.FAPI.UI.showPayment === 'function'
-        ? window.FAPI
-        : null;
     },
 
     getVkPlatform() {
@@ -740,7 +755,22 @@
     },
 
     showRewardedAd() {
-      return this.showVkAd('reward');
+      return this.showVkAd('reward').then((rewarded) => {
+        if (rewarded && this.isOkClient()) this.scheduleOkRewardCoinSync();
+        return rewarded;
+      });
+    },
+
+    scheduleOkRewardCoinSync() {
+      if (this.okRewardCoinSyncTimer) clearTimeout(this.okRewardCoinSyncTimer);
+      this.okRewardCoinSyncTimer = setTimeout(() => {
+        this.okRewardCoinSyncTimer = null;
+        if (!this.game) return;
+        if (this.game.coinFlights && this.game.coinFlights.length) {
+          this.game.coinFlights.length = 0;
+        }
+        this.game.displayCoins = this.game.coins;
+      }, 2800);
     },
 
     showInterstitialAd() {

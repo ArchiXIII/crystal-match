@@ -6,14 +6,24 @@
       return true;
     },
 
-    syncProgressLeaderboards() {
-      if (!this.isOkClient()) this.retryPendingEndlessScore();
-      if (!this.backendClient || !this.game) return Promise.resolve(false);
-      const totalStars = this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
+    getPlatformPlayerName() {
       const user = this.vkUser && typeof this.vkUser === 'object' ? this.vkUser : {};
       const firstName = typeof user.first_name === 'string' ? user.first_name.trim() : '';
       const lastName = typeof user.last_name === 'string' ? user.last_name.trim() : '';
-      const playerName = [firstName, lastName].filter(Boolean).join(' ');
+      return [firstName, lastName].filter(Boolean).join(' ');
+    },
+
+    syncProgressLeaderboards() {
+      if (this.isOkClient()) {
+        if (this.game && this.game.gameMode === 'endless' && this.game.gameOver) {
+          this.publishOkEndlessScore(this.game.score);
+        }
+      } else {
+        this.retryPendingEndlessScore();
+      }
+      if (!this.backendClient || !this.game) return Promise.resolve(false);
+      const totalStars = this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
+      const playerName = this.getPlatformPlayerName();
       const values = totalStars + ':' + playerName;
       if (this.leaderboardSyncInFlight) return this.leaderboardSyncInFlight;
       if (values === this.lastLeaderboardSyncValues) return Promise.resolve(true);
@@ -54,6 +64,7 @@
 
     mapBackendLeaderboard(payload) {
       const userId = String(
+        (this.isOkClient() && new URLSearchParams(window.location.search || '').get('vk_ok_user_id')) ||
         (this.vkUser && this.vkUser.id) ||
         (this.vkLaunchParams && this.vkLaunchParams.vk_user_id) ||
         ''
@@ -154,7 +165,6 @@
     },
 
     async loadVkEndlessLeaderboard() {
-      if (this.isOkClient()) return [];
       if (!this.vkBridge) {
         const error = new Error('VK_UNAVAILABLE');
         this.warnPlatformIssue('Endless leaderboard read failed', error);
@@ -183,6 +193,37 @@
         this.warnPlatformIssue('Endless leaderboard read failed', error);
         throw error;
       }
+    },
+
+    publishOkEndlessScore(score) {
+      const value = Math.max(0, Math.floor(Number(score) || 0));
+      if (!this.backendClient || !value) return Promise.resolve(false);
+      if (this.okEndlessScoreSubmitInFlight) return this.okEndlessScoreSubmitInFlight;
+      this.okEndlessScoreSubmitInFlight = this.backendClient
+        .submitOkEndlessScore(value, this.getPlatformPlayerName())
+        .then(() => true)
+        .catch((error) => {
+          this.warnPlatformIssue('OK endless score submit failed', error);
+          return false;
+        })
+        .finally(() => {
+          this.okEndlessScoreSubmitInFlight = null;
+        });
+      return this.okEndlessScoreSubmitInFlight;
+    },
+
+    async loadOkEndlessLeaderboard() {
+      if (!this.backendClient) throw new Error('BACKEND_UNAVAILABLE');
+      const cloudBest = this.cloudProgress ? Number(this.cloudProgress.endlessBestScore) : 0;
+      const score = Math.max(
+        0,
+        Math.floor(Number(cloudBest) || 0),
+        this.loadLocalBestScore(),
+        Math.floor(Number(this.game && this.game.score) || 0)
+      );
+      if (score) await this.publishOkEndlessScore(score);
+      const payload = await this.backendClient.getOkEndlessLeaderboard(20, 0);
+      return this.mapBackendLeaderboard(payload);
     },
 
     retryPendingEndlessScore() {
@@ -252,18 +293,13 @@
       );
       this.submitLeaderboardScore(score);
       if (this.isOkClient()) {
-        if (!this.vkBridge) return false;
-        this.pauseAudioForSystem();
         try {
-          await this.vkBridge.send('VKWebAppShowLeaderBoardBox', {
-            user_result: score
-          });
+          this.game.setLeaderboardEntries(await this.loadOkEndlessLeaderboard());
           return true;
         } catch (error) {
-          this.warnPlatformIssue('OK endless leaderboard failed', error);
+          this.warnPlatformIssue('OK endless leaderboard read failed', error);
+          this.game.setLeaderboardError(this.t('leaderboard.backendUnavailable'));
           return false;
-        } finally {
-          this.resumeAudioFromSystem();
         }
       }
       try {
@@ -320,65 +356,6 @@
       return catalog.length > 0;
     },
 
-    handleOkApiCallback(method, result) {
-      if (method !== 'showPayment' || !this.okPaymentResolve) return;
-      const resolve = this.okPaymentResolve;
-      this.okPaymentResolve = null;
-      if (this.okPaymentTimer) {
-        clearTimeout(this.okPaymentTimer);
-        this.okPaymentTimer = null;
-      }
-      const status = String(result || '').toLowerCase();
-      if (status !== 'ok' && status !== 'success') {
-        resolve(false);
-        return;
-      }
-      this.purchaseAwaitingConfirmation = true;
-      if (this.game) this.game.coinShopError = this.t('shop.processing');
-      Promise.resolve(this.processPendingPurchases({
-        source: 'purchase',
-        afterPurchase: true
-      })).finally(() => resolve(true));
-    },
-
-    showOkPayment(pack, product) {
-      const fapi = this.getOkFapi();
-      if (!fapi || this.okPaymentResolve) return Promise.resolve(false);
-      const name = this.game && this.game.t
-        ? this.game.t(pack.labelKey)
-        : product.item;
-      const description = this.lang === 'ru'
-        ? '\u0418\u0433\u0440\u043E\u0432\u044B\u0435 \u043C\u043E\u043D\u0435\u0442\u044B'
-        : 'Game coins';
-      return new Promise((resolve) => {
-        this.okPaymentResolve = resolve;
-        this.okPaymentTimer = setTimeout(() => {
-          if (this.okPaymentResolve !== resolve) return;
-          this.okPaymentResolve = null;
-          this.okPaymentTimer = null;
-          resolve(false);
-        }, 300000);
-        try {
-          fapi.UI.showPayment(
-            name,
-            description,
-            product.item,
-            product.votes,
-            null,
-            null,
-            'ok',
-            'true'
-          );
-        } catch (error) {
-          clearTimeout(this.okPaymentTimer);
-          this.okPaymentTimer = null;
-          this.okPaymentResolve = null;
-          this.warnPlatformIssue('OK payment window failed', error);
-          resolve(false);
-        }
-      });
-    },
-
     async purchaseCoins(pack) {
       if (!pack || !pack.id || !this.game || !this.vkBridge || this.purchaseInFlight) return false;
       if (!this.backendClient || !this.isServerBackedPlayer()) {
@@ -398,7 +375,23 @@
       this.pauseAudioForSystem();
       try {
         if (this.isOkClient()) {
-          return await this.showOkPayment(pack, product);
+          const name = this.game && this.game.t
+            ? this.game.t(pack.labelKey)
+            : product.item;
+          const description = this.lang === 'ru'
+            ? '\u0418\u0433\u0440\u043E\u0432\u044B\u0435 \u043C\u043E\u043D\u0435\u0442\u044B'
+            : 'Game coins';
+          const paid = await this.showOkPaymentDialog(
+            name,
+            description,
+            product.item,
+            product.votes
+          );
+          if (!paid) return false;
+          this.purchaseAwaitingConfirmation = true;
+          this.game.coinShopError = this.t('shop.processing');
+          await this.processPendingPurchases({ source: 'purchase', afterPurchase: true });
+          return true;
         }
         const response = await this.vkBridge.send('VKWebAppShowOrderBox', {
           type: 'item',
@@ -410,6 +403,7 @@
         await this.processPendingPurchases({ source: 'purchase', afterPurchase: true });
         return true;
       } catch (error) {
+        if (this.isOkClient()) this.warnPlatformIssue('OK purchase failed', error);
         return false;
       } finally {
         this.purchaseInFlight = false;
@@ -543,7 +537,8 @@
           this.purchaseBackendReady = true;
           return true;
         })
-        .catch(() => {
+        .catch((error) => {
+          if (this.isOkClient()) this.warnPlatformIssue('OK purchase confirmation failed', error);
           this.purchaseBackendReady = false;
           if (this.game && (this.game.coinShopOpen || source.afterPurchase)) {
             this.game.coinShopError = this.t('shop.backendUnavailable');
