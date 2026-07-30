@@ -36,9 +36,13 @@
     purchaseAwaitingConfirmation: false,
     leaderboardSyncInFlight: null,
     lastLeaderboardSyncValues: '',
+    okFapiReady: false,
+    okFapiPromise: null,
+    okApiCallbackBound: false,
+    previousOkApiCallback: null,
 
     warnPlatformIssue(label, error) {
-      const message = error && typeof error.message === 'string' && /^(BACKEND|VK)_/.test(error.message)
+      const message = error && typeof error.message === 'string' && /^(BACKEND|VK|OK)_/.test(error.message)
         ? error.message
         : '';
       const detail = error && (
@@ -49,7 +53,7 @@
         message ||
         error.name
       );
-      console.warn('[Crystal Match VK] ' + label, detail || 'UNKNOWN_ERROR');
+      console.warn('[Crystal Match ' + (this.isOkClient() ? 'OK' : 'VK') + '] ' + label, detail || 'UNKNOWN_ERROR');
     },
 
     async initPlatform() {
@@ -72,7 +76,12 @@
       } catch (error) {
         this.vkLaunchParams = null;
       }
-      await this.resizeDesktopVkWindow();
+      if (this.isOkClient()) {
+        this.features.nativeEndlessLeaderboard = true;
+        await this.initOkFapi();
+      } else {
+        await this.resizeDesktopVkWindow();
+      }
       if (window.CrystalMatchVkBackendClient) {
         this.backendClient = new window.CrystalMatchVkBackendClient({
           baseUrl: config.backendUrl,
@@ -80,6 +89,94 @@
           getLaunchParams: () => this.rawLaunchParams
         });
       }
+    },
+
+    isOkClient() {
+      const params = new URLSearchParams(window.location.search || '');
+      return String(
+        (this.vkLaunchParams && this.vkLaunchParams.vk_client) ||
+        params.get('vk_client') ||
+        ''
+      ).toLowerCase() === 'ok';
+    },
+
+    loadOkFapiScript() {
+      if (window.FAPI) return Promise.resolve(window.FAPI);
+      if (this.okFapiPromise) return this.okFapiPromise;
+      this.okFapiPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://api.ok.ru/js/fapi5.js';
+        script.async = true;
+        script.onload = () => resolve(window.FAPI || null);
+        script.onerror = () => reject(new Error('OK_FAPI_LOAD_FAILED'));
+        document.head.appendChild(script);
+      });
+      return this.okFapiPromise;
+    },
+
+    bindOkApiCallback() {
+      if (this.okApiCallbackBound) return;
+      this.okApiCallbackBound = true;
+      this.previousOkApiCallback = typeof window.API_callback === 'function'
+        ? window.API_callback
+        : null;
+      window.API_callback = (method, result, data) => {
+        if (this.previousOkApiCallback) {
+          try {
+            this.previousOkApiCallback(method, result, data);
+          } catch (error) {}
+        }
+        if (this.handleOkApiCallback) this.handleOkApiCallback(method, result, data);
+      };
+    },
+
+    async initOkFapi() {
+      let fapi;
+      try {
+        fapi = await this.loadOkFapiScript();
+      } catch (error) {
+        this.warnPlatformIssue('OK FAPI load failed', error);
+        return false;
+      }
+      if (!fapi || !fapi.Util || typeof fapi.Util.getRequestParameters !== 'function' || typeof fapi.init !== 'function') {
+        this.warnPlatformIssue('OK FAPI unavailable', new Error('OK_FAPI_UNAVAILABLE'));
+        return false;
+      }
+      this.bindOkApiCallback();
+      let params;
+      try {
+        params = fapi.Util.getRequestParameters() || {};
+      } catch (error) {
+        this.warnPlatformIssue('OK FAPI parameters unavailable', error);
+        return false;
+      }
+      const apiServer = String(params.api_server || '');
+      const apiConnection = String(params.apiconnection || '');
+      if (!apiServer || !apiConnection) {
+        this.warnPlatformIssue('OK FAPI parameters unavailable', new Error('OK_FAPI_PARAMS_UNAVAILABLE'));
+        return false;
+      }
+      return new Promise((resolve) => {
+        try {
+          fapi.init(apiServer, apiConnection, () => {
+            this.okFapiReady = true;
+            resolve(true);
+          }, (error) => {
+            this.warnPlatformIssue('OK FAPI initialization failed', error);
+            resolve(false);
+          });
+        } catch (error) {
+          this.warnPlatformIssue('OK FAPI initialization failed', error);
+          resolve(false);
+        }
+      });
+    },
+
+    getOkFapi() {
+      return this.okFapiReady && window.FAPI && window.FAPI.UI &&
+        typeof window.FAPI.UI.showPayment === 'function'
+        ? window.FAPI
+        : null;
     },
 
     getVkPlatform() {

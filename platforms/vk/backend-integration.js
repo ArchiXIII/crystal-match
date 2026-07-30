@@ -7,7 +7,7 @@
     },
 
     syncProgressLeaderboards() {
-      this.retryPendingEndlessScore();
+      if (!this.isOkClient()) this.retryPendingEndlessScore();
       if (!this.backendClient || !this.game) return Promise.resolve(false);
       const totalStars = this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
       const user = this.vkUser && typeof this.vkUser === 'object' ? this.vkUser : {};
@@ -154,6 +154,7 @@
     },
 
     async loadVkEndlessLeaderboard() {
+      if (this.isOkClient()) return [];
       if (!this.vkBridge) {
         const error = new Error('VK_UNAVAILABLE');
         this.warnPlatformIssue('Endless leaderboard read failed', error);
@@ -250,6 +251,21 @@
         Math.floor(Number(this.game && this.game.score) || 0)
       );
       this.submitLeaderboardScore(score);
+      if (this.isOkClient()) {
+        if (!this.vkBridge) return false;
+        this.pauseAudioForSystem();
+        try {
+          await this.vkBridge.send('VKWebAppShowLeaderBoardBox', {
+            user_result: score
+          });
+          return true;
+        } catch (error) {
+          this.warnPlatformIssue('OK endless leaderboard failed', error);
+          return false;
+        } finally {
+          this.resumeAudioFromSystem();
+        }
+      }
       try {
         this.game.setLeaderboardEntries(await this.loadVkEndlessLeaderboard());
         return true;
@@ -289,7 +305,9 @@
 
     loadCoinPurchaseCatalog() {
       if (!this.game || !this.game.setCoinPurchaseCatalog) return false;
-      const suffix = this.lang === 'ru' ? ' голосов' : ' votes';
+      const suffix = this.isOkClient()
+        ? ' \u041E\u041A'
+        : (this.lang === 'ru' ? ' \u0433\u043E\u043B\u043E\u0441\u043E\u0432' : ' votes');
       const catalog = this.game.coinPurchasePackages.map((pack) => {
         const product = this.getPurchaseProduct(pack.id);
         if (!product) return null;
@@ -300,6 +318,65 @@
       }).filter(Boolean);
       this.game.setCoinPurchaseCatalog(catalog);
       return catalog.length > 0;
+    },
+
+    handleOkApiCallback(method, result) {
+      if (method !== 'showPayment' || !this.okPaymentResolve) return;
+      const resolve = this.okPaymentResolve;
+      this.okPaymentResolve = null;
+      if (this.okPaymentTimer) {
+        clearTimeout(this.okPaymentTimer);
+        this.okPaymentTimer = null;
+      }
+      const status = String(result || '').toLowerCase();
+      if (status !== 'ok' && status !== 'success') {
+        resolve(false);
+        return;
+      }
+      this.purchaseAwaitingConfirmation = true;
+      if (this.game) this.game.coinShopError = this.t('shop.processing');
+      Promise.resolve(this.processPendingPurchases({
+        source: 'purchase',
+        afterPurchase: true
+      })).finally(() => resolve(true));
+    },
+
+    showOkPayment(pack, product) {
+      const fapi = this.getOkFapi();
+      if (!fapi || this.okPaymentResolve) return Promise.resolve(false);
+      const name = this.game && this.game.t
+        ? this.game.t(pack.labelKey)
+        : product.item;
+      const description = this.lang === 'ru'
+        ? '\u0418\u0433\u0440\u043E\u0432\u044B\u0435 \u043C\u043E\u043D\u0435\u0442\u044B'
+        : 'Game coins';
+      return new Promise((resolve) => {
+        this.okPaymentResolve = resolve;
+        this.okPaymentTimer = setTimeout(() => {
+          if (this.okPaymentResolve !== resolve) return;
+          this.okPaymentResolve = null;
+          this.okPaymentTimer = null;
+          resolve(false);
+        }, 300000);
+        try {
+          fapi.UI.showPayment(
+            name,
+            description,
+            product.item,
+            product.votes,
+            null,
+            null,
+            'ok',
+            'true'
+          );
+        } catch (error) {
+          clearTimeout(this.okPaymentTimer);
+          this.okPaymentTimer = null;
+          this.okPaymentResolve = null;
+          this.warnPlatformIssue('OK payment window failed', error);
+          resolve(false);
+        }
+      });
     },
 
     async purchaseCoins(pack) {
@@ -320,6 +397,9 @@
       this.purchaseInFlight = true;
       this.pauseAudioForSystem();
       try {
+        if (this.isOkClient()) {
+          return await this.showOkPayment(pack, product);
+        }
         const response = await this.vkBridge.send('VKWebAppShowOrderBox', {
           type: 'item',
           item: product.item
