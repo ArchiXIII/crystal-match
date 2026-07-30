@@ -41,7 +41,10 @@
     okPaymentEventsBound: false,
     okPaymentResolve: null,
     okPaymentTimer: null,
-    okRewardCoinSyncTimer: null,
+    rafId: 0,
+    runtimeRestoreTimer: null,
+    rewardCoinSyncTimer: null,
+    runtimeRecoveryEventsBound: false,
 
     warnPlatformIssue(label, error) {
       const message = error && typeof error.message === 'string' && /^(BACKEND|VK|OK)_/.test(error.message)
@@ -230,20 +233,78 @@
     },
 
     bindPlatformEvents() {
-      if (!this.vkBridge || typeof this.vkBridge.subscribe !== 'function' || this.bridgeListener) return;
-      this.bridgeListener = (event) => {
-        const type = event && event.detail ? event.detail.type : '';
-        if (type === 'VKWebAppViewHide') {
-          this.flushCloudProgress();
-          this.pauseAudioForSystem();
-          return;
-        }
-        if (type === 'VKWebAppViewRestore') {
-          this.resumeAudioFromSystem();
-          this.refreshCloudCoins();
-        }
-      };
-      this.vkBridge.subscribe(this.bridgeListener);
+      this.bindRuntimeRecoveryEvents();
+      if (this.vkBridge && typeof this.vkBridge.subscribe === 'function' && !this.bridgeListener) {
+        this.bridgeListener = (event) => {
+          const type = event && event.detail ? event.detail.type : '';
+          if (type === 'VKWebAppViewHide') {
+            this.flushCloudProgress();
+            this.pauseAudioForSystem();
+            return;
+          }
+          if (type === 'VKWebAppViewRestore') {
+            this.refreshCloudCoins();
+            this.scheduleRuntimeRestore();
+          }
+        };
+        this.vkBridge.subscribe(this.bridgeListener);
+      }
+    },
+
+    bindRuntimeRecoveryEvents() {
+      if (this.runtimeRecoveryEventsBound) return;
+      this.runtimeRecoveryEventsBound = true;
+      window.addEventListener('focus', () => this.scheduleRuntimeRestore(), { passive: true });
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) this.scheduleRuntimeRestore();
+      }, { passive: true });
+    },
+
+    scheduleRuntimeRestore(reconcileCoins) {
+      if (this.runtimeRestoreTimer) clearTimeout(this.runtimeRestoreTimer);
+      this.runtimeRestoreTimer = setTimeout(() => {
+        this.runtimeRestoreTimer = null;
+        this.restoreGameRuntime();
+      }, 0);
+      if (!reconcileCoins) return;
+      if (this.rewardCoinSyncTimer) clearTimeout(this.rewardCoinSyncTimer);
+      this.rewardCoinSyncTimer = setTimeout(() => {
+        this.rewardCoinSyncTimer = null;
+        if (!this.game) return;
+        if (this.game.coinFlights && this.game.coinFlights.length) this.game.coinFlights.length = 0;
+        this.game.displayCoins = this.game.coins;
+        this.restoreGameRuntime();
+      }, 3200);
+    },
+
+    restoreGameRuntime() {
+      this.resumeAudioFromSystem();
+      this.lastTime = 0;
+      if (this.rafId) {
+        cancelAnimationFrame(this.rafId);
+        this.rafId = 0;
+      }
+      const time = typeof performance !== 'undefined' && performance.now
+        ? performance.now()
+        : Date.now();
+      if (this.game && this.game.update) this.game.update(0);
+      if (this.renderer && this.renderer.render) this.renderer.render(time);
+      this.ensureAnimationLoop();
+    },
+
+    ensureAnimationLoop() {
+      if (this.rafId) return;
+      this.rafId = requestAnimationFrame((time) => this.loop(time));
+    },
+
+    loop(time) {
+      this.rafId = 0;
+      const dt = Math.min(32, time - (this.lastTime || time));
+      this.lastTime = time;
+      this.updateAdaptiveQuality(time);
+      this.game.update(dt);
+      this.renderer.render(time);
+      this.ensureAnimationLoop();
     },
 
     async loadPlayer() {
@@ -750,27 +811,15 @@
         .catch(() => false)
         .finally(() => {
           this.adInFlight = false;
-          this.resumeAudioFromSystem();
+          this.scheduleRuntimeRestore();
         });
     },
 
     showRewardedAd() {
       return this.showVkAd('reward').then((rewarded) => {
-        if (rewarded && this.isOkClient()) this.scheduleOkRewardCoinSync();
+        if (rewarded) this.scheduleRuntimeRestore(true);
         return rewarded;
       });
-    },
-
-    scheduleOkRewardCoinSync() {
-      if (this.okRewardCoinSyncTimer) clearTimeout(this.okRewardCoinSyncTimer);
-      this.okRewardCoinSyncTimer = setTimeout(() => {
-        this.okRewardCoinSyncTimer = null;
-        if (!this.game) return;
-        if (this.game.coinFlights && this.game.coinFlights.length) {
-          this.game.coinFlights.length = 0;
-        }
-        this.game.displayCoins = this.game.coins;
-      }, 2800);
     },
 
     showInterstitialAd() {
