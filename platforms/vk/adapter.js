@@ -85,9 +85,7 @@
         this.vkLaunchParams = null;
       }
       this.features.nativeEndlessLeaderboard = false;
-      if (!this.isOkClient()) {
-        await this.resizeDesktopVkWindow();
-      }
+      await this.resizeDesktopVkWindow();
       if (window.CrystalMatchVkBackendClient) {
         this.backendClient = new window.CrystalMatchVkBackendClient({
           baseUrl: config.backendUrl,
@@ -116,7 +114,8 @@
     },
 
     async resizeDesktopVkWindow() {
-      if (!this.vkBridge || this.getVkPlatform() !== 'desktop_web') return false;
+      const platform = this.getVkPlatform();
+      if (!this.vkBridge || (platform !== 'desktop_web' && platform !== 'desktop_web_ok')) return false;
       let platformConfig;
       try {
         platformConfig = await this.vkBridge.send('VKWebAppGetConfig');
@@ -131,7 +130,7 @@
       }
       try {
         await this.vkBridge.send('VKWebAppResizeWindow', {
-          width: 911,
+          width: platform === 'desktop_web_ok' ? 1000 : 911,
           height: Math.max(1, Math.floor(viewportHeight - 100))
         });
         return true;
