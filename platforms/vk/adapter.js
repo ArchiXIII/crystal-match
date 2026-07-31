@@ -50,14 +50,14 @@
       const message = error && typeof error.message === 'string' && /^(BACKEND|VK|OK)_/.test(error.message)
         ? error.message
         : '';
-      const detail = error && (
-        error.safeCode ||
-        error.status ||
-        error.error_type ||
-        (error.error_data && error.error_data.error_code) ||
-        message ||
-        error.name
-      );
+      const errorData = error && error.error_data && typeof error.error_data === 'object'
+        ? error.error_data
+        : null;
+      const detail = error && {
+        type: error.error_type || error.name || '',
+        code: error.safeCode || error.status || (errorData && errorData.error_code) || '',
+        reason: String((errorData && (errorData.error_reason || errorData.error_msg)) || message || '').slice(0, 160)
+      };
       console.warn('[Crystal Match ' + (this.isOkClient() ? 'OK' : 'VK') + '] ' + label, detail || 'UNKNOWN_ERROR');
     },
 
