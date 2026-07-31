@@ -10,6 +10,11 @@
     localSubmittedScoreKey: 'crystal-match-vk-endless-submitted-score',
     backendUrl: 'https://d5dl7q0eh16ojp505u1v.6brbn2wz.apigw.yandexcloud.net',
     apiVersion: '5.199',
+    layout: {
+      sideGoalMinWidth: 880,
+      sideGoalMinHeight: 620,
+      desktopSidePadMax: 24
+    },
     features: {
       nativeLeaderboard: false,
       nativeEndlessLeaderboard: false,

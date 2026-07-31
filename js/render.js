@@ -273,6 +273,7 @@
     }
 
     computeLayout() {
+      const platformLayout = (window.CrystalMatchPlatformConfig && window.CrystalMatchPlatformConfig.layout) || {};
       const tightPortrait = this.width <= 620 && this.height >= this.width;
       const safeTop = this.safeInset('--safe-top') + Math.max(14, Math.min(28, this.height * 0.025));
       const safeBottom = this.safeInset('--safe-bottom') + (tightPortrait
@@ -284,9 +285,12 @@
       const boosterHeight = tightPortrait
         ? Math.min(66, Math.max(54, this.height * 0.064))
         : Math.min(96, Math.max(74, this.height * 0.12));
+      const desktopSidePadMax = Number.isFinite(platformLayout.desktopSidePadMax)
+        ? platformLayout.desktopSidePadMax
+        : 28;
       const sidePad = tightPortrait
         ? Math.max(6, Math.min(12, this.width * 0.018))
-        : Math.max(10, Math.min(28, this.width * 0.035));
+        : Math.max(10, Math.min(desktopSidePadMax, this.width * 0.035));
       const contentWidth = this.width - sidePad * 2;
       const goalGap = Math.max(12, Math.min(18, this.width * 0.018));
       if (this.game.menuOpen && !this.game.levelSelectOpen) {
@@ -329,7 +333,13 @@
       const topGoalHeight = tightPortrait
         ? Math.min(54, Math.max(44, this.height * 0.052))
         : Math.min(82, Math.max(72, this.height * 0.095));
-      const canTrySideGoal = this.width >= 900;
+      const sideGoalMinWidth = Number.isFinite(platformLayout.sideGoalMinWidth)
+        ? platformLayout.sideGoalMinWidth
+        : 900;
+      const sideGoalMinHeight = Number.isFinite(platformLayout.sideGoalMinHeight)
+        ? platformLayout.sideGoalMinHeight
+        : 0;
+      const canTrySideGoal = this.width >= sideGoalMinWidth && this.height >= sideGoalMinHeight;
 
       const makeBoard = (sideGoal) => {
         const goalHeight = sideGoal ? sideGoalHeight : topGoalHeight;
