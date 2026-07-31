@@ -360,7 +360,7 @@
 
     pollPurchaseConfirmation() {
       if (this.purchaseConfirmationPromise) return this.purchaseConfirmationPromise;
-      const delays = [0, 500, 900, 1600, 2800, 4500];
+      const delays = [0, 500, 1000, 2000, 4000, 8000, 12000, 20000];
       this.purchaseConfirmationPromise = (async () => {
         for (const delay of delays) {
           if (!this.purchaseAwaitingConfirmation) return true;
