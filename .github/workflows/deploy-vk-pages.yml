@@ -1,9 +1,9 @@
-name: Deploy OK test build to GitHub Pages
+name: Deploy VK build to GitHub Pages
 
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 permissions:
@@ -25,11 +25,11 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Build current test version
+      - name: Build VK version
         shell: pwsh
         run: ./tools/build-platform.ps1 -Platform vk
 
-      - name: Upload OK test Pages artifact
+      - name: Upload VK Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./output/vk
