@@ -745,13 +745,39 @@
       return !!(this.vkBridge && !this.adInFlight);
     },
 
+    waitForVkRewardAd(params) {
+      const delays = [0, 250, 500, 900, 1400];
+      let attempt = 0;
+      const check = () => {
+        const delay = delays[attempt++];
+        const wait = delay
+          ? new Promise((resolve) => window.setTimeout(resolve, delay))
+          : Promise.resolve();
+        return wait.then(() => this.vkBridge.send('VKWebAppCheckNativeAds', params))
+          .then((response) => {
+            if (response && response.result) return true;
+            return attempt < delays.length ? check() : false;
+          });
+      };
+      return check().catch((error) => {
+        this.warnPlatformIssue('Native ad availability check failed', error);
+        return true;
+      });
+    },
+
     showVkAd(format) {
       if (!this.vkBridge || this.adInFlight) return Promise.resolve(false);
       this.adInFlight = true;
-      this.pauseAudioForSystem();
       const params = { ad_format: format };
       if (format === 'reward') params.use_waterfall = true;
-      return this.vkBridge.send('VKWebAppShowNativeAds', params)
+      const ready = format === 'reward'
+        ? this.waitForVkRewardAd(params)
+        : Promise.resolve(true);
+      return ready.then((available) => {
+        if (!available) return false;
+        this.pauseAudioForSystem();
+        return this.vkBridge.send('VKWebAppShowNativeAds', params);
+      })
         .then((response) => !!(response && response.result))
         .catch((error) => {
           this.warnPlatformIssue('Native ad failed', error);
