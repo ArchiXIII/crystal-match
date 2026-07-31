@@ -88,7 +88,7 @@
       if (window.CrystalMatchVkBackendClient) {
         this.backendClient = new window.CrystalMatchVkBackendClient({
           baseUrl: config.backendUrl,
-          timeout: 3000,
+          timeout: 6000,
           getLaunchParams: () => this.rawLaunchParams
         });
       }
