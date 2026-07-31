@@ -261,12 +261,15 @@
         if (!this.vkBridge) return false;
         this.pauseAudioForSystem();
         try {
-          await this.vkBridge.send('VKWebAppShowLeaderBoardBox', {
+          const response = await this.vkBridge.send('VKWebAppShowLeaderBoardBox', {
             user_result: score
           });
+          if (!response || response.success === false) throw new Error('OK_LEADERBOARD_UNAVAILABLE');
+          this.game.leaderboardOpen = false;
           return true;
         } catch (error) {
           this.warnPlatformIssue('OK native leaderboard failed', error);
+          this.game.setLeaderboardError(this.t('leaderboard.unavailable'));
           return false;
         } finally {
           this.scheduleRuntimeRestore();
@@ -347,6 +350,7 @@
         await this.processPendingPurchases({ source: 'purchase', afterPurchase: true });
         return true;
       } catch (error) {
+        this.warnPlatformIssue('Coin purchase failed', error);
         return false;
       } finally {
         this.purchaseInFlight = false;

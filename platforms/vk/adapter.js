@@ -39,6 +39,7 @@
     rafId: 0,
     runtimeRestoreTimer: null,
     runtimeRecoveryProbeTimer: null,
+    runtimeCanvasRefreshTimer: null,
     runtimeFrameVersion: 0,
     runtimeRecoveryAttempts: 0,
     rewardCoinSyncTimer: null,
@@ -79,10 +80,8 @@
       } catch (error) {
         this.vkLaunchParams = null;
       }
-      if (this.isOkClient()) {
-        this.features.nativeEndlessLeaderboard = true;
-      } else {
-        this.features.nativeEndlessLeaderboard = false;
+      this.features.nativeEndlessLeaderboard = false;
+      if (!this.isOkClient()) {
         await this.resizeDesktopVkWindow();
       }
       if (window.CrystalMatchVkBackendClient) {
@@ -170,9 +169,14 @@
       if (this.runtimeRestoreTimer) clearTimeout(this.runtimeRestoreTimer);
       this.runtimeRestoreTimer = setTimeout(() => {
         this.runtimeRestoreTimer = null;
-        this.restoreGameRuntime();
+        this.restoreGameRuntime(true);
         this.startRuntimeRecoveryProbe();
       }, 0);
+      if (this.runtimeCanvasRefreshTimer) clearTimeout(this.runtimeCanvasRefreshTimer);
+      this.runtimeCanvasRefreshTimer = setTimeout(() => {
+        this.runtimeCanvasRefreshTimer = null;
+        this.restoreGameRuntime(true);
+      }, 420);
       if (!reconcileCoins) return;
       if (this.rewardCoinSyncTimer) clearTimeout(this.rewardCoinSyncTimer);
       this.rewardCoinSyncTimer = setTimeout(() => {
@@ -180,11 +184,11 @@
         if (!this.game) return;
         if (this.game.coinFlights && this.game.coinFlights.length) this.game.coinFlights.length = 0;
         this.game.displayCoins = this.game.coins;
-        this.restoreGameRuntime();
+        this.restoreGameRuntime(true);
       }, 3200);
     },
 
-    restoreGameRuntime() {
+    restoreGameRuntime(refreshCanvas) {
       this.resumeAudioFromSystem();
       this.lastTime = 0;
       if (this.rafId) {
@@ -194,6 +198,7 @@
       const time = typeof performance !== 'undefined' && performance.now
         ? performance.now()
         : Date.now();
+      if (refreshCanvas && this.resize) this.resize();
       if (this.game && this.game.update) this.game.update(0);
       if (this.renderer && this.renderer.render) this.renderer.render(time);
       this.ensureAnimationLoop();
