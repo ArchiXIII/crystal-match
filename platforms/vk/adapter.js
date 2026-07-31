@@ -29,10 +29,6 @@
     lastStoredValue: '',
     cloudRetryDelay: 4000,
     adInFlight: false,
-    bannerShowInFlight: false,
-    bannerVisible: false,
-    bannerRetryAt: 0,
-    bannerRetryTimer: null,
     purchaseInFlight: false,
     purchaseEventsInFlight: false,
     purchaseBackendReady: null,
@@ -155,18 +151,6 @@
           if (type === 'VKWebAppViewRestore') {
             this.refreshCloudCoins();
             this.scheduleRuntimeRestore();
-            this.ensureStickyBanner();
-            return;
-          }
-          if (type === 'VKWebAppBannerAdUpdated') {
-            const data = event && event.detail ? event.detail.data : null;
-            this.bannerVisible = !!(data && data.result);
-            if (!this.bannerVisible) this.scheduleBannerRetry(60000);
-            return;
-          }
-          if (type === 'VKWebAppBannerAdClosedByUser') {
-            this.bannerVisible = false;
-            this.scheduleBannerRetry(600000);
           }
         };
         this.vkBridge.subscribe(this.bridgeListener);
@@ -180,50 +164,6 @@
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) this.scheduleRuntimeRestore();
       }, { passive: true });
-    },
-
-    async ensureStickyBanner() {
-      if (!this.vkBridge || this.bannerVisible || this.bannerShowInFlight) return this.bannerVisible;
-      if (Date.now() < this.bannerRetryAt) return false;
-      this.bannerShowInFlight = true;
-      try {
-        const available = await this.vkBridge.send('VKWebAppCheckBannerAd');
-        if (!available || !available.result) {
-          this.warnPlatformIssue('Banner ad unavailable', new Error('VK_BANNER_NOT_AVAILABLE'));
-          this.scheduleBannerRetry(60000);
-          return false;
-        }
-        const desktop = this.getVkPlatform() === 'desktop_web';
-        const result = await this.vkBridge.send('VKWebAppShowBannerAd', {
-          banner_location: 'bottom',
-          banner_align: desktop ? 'right' : 'center',
-          layout_type: 'resize',
-          can_close: true
-        });
-        this.bannerVisible = !!(result && result.result);
-        if (this.bannerVisible && this.bannerRetryTimer) {
-          clearTimeout(this.bannerRetryTimer);
-          this.bannerRetryTimer = null;
-        }
-        if (!this.bannerVisible) this.scheduleBannerRetry(60000);
-        return this.bannerVisible;
-      } catch (error) {
-        this.warnPlatformIssue('Banner ad failed', error);
-        this.scheduleBannerRetry(60000);
-        return false;
-      } finally {
-        this.bannerShowInFlight = false;
-      }
-    },
-
-    scheduleBannerRetry(delay) {
-      const wait = Math.max(1000, Number(delay) || 60000);
-      this.bannerRetryAt = Date.now() + wait;
-      if (this.bannerRetryTimer) clearTimeout(this.bannerRetryTimer);
-      this.bannerRetryTimer = setTimeout(() => {
-        this.bannerRetryTimer = null;
-        if (!document.hidden) this.ensureStickyBanner();
-      }, wait);
     },
 
     scheduleRuntimeRestore(reconcileCoins) {
