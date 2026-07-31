@@ -760,6 +760,26 @@
       return true;
     },
 
+    async requestVkAd(format, params) {
+      try {
+        const response = await this.vkBridge.send('VKWebAppShowNativeAds', params);
+        if (response && response.result) return true;
+      } catch (error) {
+        this.warnPlatformIssue('Native waterfall ad failed', error);
+      }
+      if (format !== 'reward' || !params.use_waterfall) return false;
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+      try {
+        const response = await this.vkBridge.send('VKWebAppShowNativeAds', {
+          ad_format: format
+        });
+        return !!(response && response.result);
+      } catch (error) {
+        this.warnPlatformIssue('Native ad fallback failed', error);
+        return false;
+      }
+    },
+
     showVkAd(format) {
       if (!this.vkBridge || this.adInFlight) return Promise.resolve(false);
       this.adInFlight = true;
@@ -770,9 +790,9 @@
         : Promise.resolve(true);
       return ready.then(() => {
         this.pauseAudioForSystem();
-        return this.vkBridge.send('VKWebAppShowNativeAds', params);
+        return this.requestVkAd(format, params);
       })
-        .then((response) => !!(response && response.result))
+        .then((result) => !!result)
         .catch((error) => {
           this.warnPlatformIssue('Native ad failed', error);
           return false;
