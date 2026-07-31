@@ -749,10 +749,14 @@
       if (!this.vkBridge || this.adInFlight) return Promise.resolve(false);
       this.adInFlight = true;
       this.pauseAudioForSystem();
-      return this.vkBridge.send('VKWebAppShowNativeAds', {
-        ad_format: format
-      }).then((response) => !!(response && response.result))
-        .catch(() => false)
+      const params = { ad_format: format };
+      if (format === 'reward') params.use_waterfall = true;
+      return this.vkBridge.send('VKWebAppShowNativeAds', params)
+        .then((response) => !!(response && response.result))
+        .catch((error) => {
+          this.warnPlatformIssue('Native ad failed', error);
+          return false;
+        })
         .finally(() => {
           this.adInFlight = false;
           this.scheduleRuntimeRestore();
