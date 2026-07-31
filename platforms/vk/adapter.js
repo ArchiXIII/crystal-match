@@ -189,6 +189,7 @@
       try {
         const available = await this.vkBridge.send('VKWebAppCheckBannerAd');
         if (!available || !available.result) {
+          this.warnPlatformIssue('Banner ad unavailable', new Error('VK_BANNER_NOT_AVAILABLE'));
           this.scheduleBannerRetry(60000);
           return false;
         }
