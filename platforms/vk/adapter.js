@@ -187,13 +187,6 @@
       if (Date.now() < this.bannerRetryAt) return false;
       this.bannerShowInFlight = true;
       try {
-        if (typeof this.vkBridge.supportsAsync === 'function') {
-          const supported = await this.vkBridge.supportsAsync('VKWebAppShowBannerAd');
-          if (!supported) {
-            this.scheduleBannerRetry(600000);
-            return false;
-          }
-        }
         const available = await this.vkBridge.send('VKWebAppCheckBannerAd');
         if (!available || !available.result) {
           this.scheduleBannerRetry(60000);
