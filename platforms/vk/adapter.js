@@ -198,10 +198,23 @@
       const time = typeof performance !== 'undefined' && performance.now
         ? performance.now()
         : Date.now();
-      if (refreshCanvas && this.resize) this.resize();
+      if (refreshCanvas) {
+        this.refreshCanvasPresentation();
+        if (this.resize) this.resize();
+      }
       if (this.game && this.game.update) this.game.update(0);
       if (this.renderer && this.renderer.render) this.renderer.render(time);
       this.ensureAnimationLoop();
+    },
+
+    refreshCanvasPresentation() {
+      if (!this.canvas) return;
+      const inlineDisplay = this.canvas.style.display;
+      this.canvas.style.display = 'none';
+      void this.canvas.offsetHeight;
+      if (inlineDisplay) this.canvas.style.display = inlineDisplay;
+      else this.canvas.style.removeProperty('display');
+      void this.canvas.offsetHeight;
     },
 
     startRuntimeRecoveryProbe() {
@@ -702,7 +715,8 @@
     },
 
     async refreshCloudCoins() {
-      if (!this.isServerBackedPlayer() || this.cloudDirty || this.cloudSaveInFlight) return;
+      if (!this.isServerBackedPlayer() || this.cloudDirty || this.cloudSaveInFlight ||
+          this.adInFlight || this.purchaseInFlight) return;
       try {
         const stored = await this.readStoredProgress();
         this.cloudProgress = this.mergeEndlessScoreProgress(stored.progress);
