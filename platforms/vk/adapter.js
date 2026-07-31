@@ -34,6 +34,7 @@
     purchaseBackendReady: null,
     appliedPurchaseEventIds: [],
     purchaseAwaitingConfirmation: false,
+    purchaseConfirmationPromise: null,
     leaderboardSyncInFlight: null,
     lastLeaderboardSyncValues: '',
     rafId: 0,

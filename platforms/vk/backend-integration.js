@@ -340,22 +340,42 @@
       this.purchaseInFlight = true;
       this.pauseAudioForSystem();
       try {
-        const response = await this.vkBridge.send('VKWebAppShowOrderBox', {
+        await this.vkBridge.send('VKWebAppShowOrderBox', {
           type: 'item',
           item: product.item
         });
-        if (!response || response.status !== 'success') return false;
         this.purchaseAwaitingConfirmation = true;
         this.game.coinShopError = this.t('shop.processing');
-        await this.processPendingPurchases({ source: 'purchase', afterPurchase: true });
+        this.pollPurchaseConfirmation();
         return true;
       } catch (error) {
         this.warnPlatformIssue('Coin purchase failed', error);
-        return false;
+        this.game.coinShopError = '';
+        return true;
       } finally {
         this.purchaseInFlight = false;
         this.scheduleRuntimeRestore();
       }
+    },
+
+    pollPurchaseConfirmation() {
+      if (this.purchaseConfirmationPromise) return this.purchaseConfirmationPromise;
+      const delays = [0, 500, 900, 1600, 2800, 4500];
+      this.purchaseConfirmationPromise = (async () => {
+        for (const delay of delays) {
+          if (!this.purchaseAwaitingConfirmation) return true;
+          if (delay) await new Promise((resolve) => window.setTimeout(resolve, delay));
+          const confirmed = await this.processPendingPurchases({
+            source: 'purchase',
+            afterPurchase: true
+          });
+          if (confirmed || !this.purchaseAwaitingConfirmation) return true;
+        }
+        return false;
+      })().finally(() => {
+        this.purchaseConfirmationPromise = null;
+      });
+      return this.purchaseConfirmationPromise;
     },
 
     pendingPurchaseEvents(payload) {
@@ -428,12 +448,6 @@
     processPendingPurchases(options) {
       const source = options && typeof options === 'object' ? options : {};
       if (this.purchaseEventsInFlight) {
-        if (source.afterPurchase && this.purchaseEventsPromise) {
-          return this.purchaseEventsPromise.then(() => this.processPendingPurchases({
-            source: source.source,
-            afterPurchase: true
-          }));
-        }
         return this.purchaseEventsPromise || Promise.resolve(false);
       }
       if (!this.backendClient || !this.game) {
@@ -482,13 +496,15 @@
               : '';
           }
           this.purchaseBackendReady = true;
-          return true;
+          return ackIds.length > 0;
         })
         .catch((error) => {
           if (this.isOkClient()) this.warnPlatformIssue('OK purchase confirmation failed', error);
           this.purchaseBackendReady = false;
           if (this.game && (this.game.coinShopOpen || source.afterPurchase)) {
-            this.game.coinShopError = this.t('shop.backendUnavailable');
+            this.game.coinShopError = this.purchaseAwaitingConfirmation
+              ? this.t('shop.processing')
+              : this.t('shop.backendUnavailable');
           }
           return false;
         })
