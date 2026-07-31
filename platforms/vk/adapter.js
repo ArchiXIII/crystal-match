@@ -745,13 +745,33 @@
       return !!(this.vkBridge && !this.adInFlight);
     },
 
+    async waitForVkRewardAd(params) {
+      const delays = [0, 400, 700, 1000, 1400, 1800, 2300, 2900, 3600];
+      for (const delay of delays) {
+        if (delay) await new Promise((resolve) => window.setTimeout(resolve, delay));
+        try {
+          const response = await this.vkBridge.send('VKWebAppCheckNativeAds', params);
+          if (response && response.result) return true;
+        } catch (error) {
+          this.warnPlatformIssue('Native ad availability check failed', error);
+          return true;
+        }
+      }
+      return true;
+    },
+
     showVkAd(format) {
       if (!this.vkBridge || this.adInFlight) return Promise.resolve(false);
       this.adInFlight = true;
-      this.pauseAudioForSystem();
       const params = { ad_format: format };
       if (format === 'reward') params.use_waterfall = true;
-      return this.vkBridge.send('VKWebAppShowNativeAds', params)
+      const ready = format === 'reward'
+        ? this.waitForVkRewardAd(params)
+        : Promise.resolve(true);
+      return ready.then(() => {
+        this.pauseAudioForSystem();
+        return this.vkBridge.send('VKWebAppShowNativeAds', params);
+      })
         .then((response) => !!(response && response.result))
         .catch((error) => {
           this.warnPlatformIssue('Native ad failed', error);
