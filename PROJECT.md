@@ -118,9 +118,9 @@ HTML5 Canvas match-3 игра Milevora team для браузерных игро
 - `platforms/vk/backend-client.js` отвечает за короткие безопасные HTTP-запросы, а `backend-integration.js` связывает backend с адаптером;
 - при недоступности backend обычный прогресс и бесплатные функции продолжают работать.
 - В VK и OK покупки открываются единым вызовом `VKWebAppShowOrderBox`; начисление выполняется только по подтверждённым backend-событиям `pending/ack`, цены OK показываются в ОК.
-- В OK лучший результат бесконечного режима и таблица рекордов работают через маршруты Archi backend `/v1/ok/endless-score` и `/v1/ok/leaderboards/endless`.
+- В OK бесконечный рейтинг открывается нативно через `VKWebAppShowLeaderBoardBox`; Archi backend для него не используется.
 
-- После нативных overlay VK/OK адаптер сбрасывает время кадра, немедленно обновляет Canvas и безопасно восстанавливает единственный цикл `requestAnimationFrame`.
+- После нативных overlay VK/OK адаптер сбрасывает время кадра, немедленно обновляет Canvas и короткой проверкой подтверждает восстановление единственного цикла `requestAnimationFrame`.
 
 ### Local
 

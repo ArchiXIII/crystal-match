@@ -99,24 +99,6 @@
       });
     }
 
-    submitOkEndlessScore(score, playerName) {
-      const body = {
-        score: Math.max(0, Math.floor(Number(score) || 0))
-      };
-      const name = typeof playerName === 'string' ? playerName.trim() : '';
-      if (name) body.playerName = name;
-      return this.request('/v1/ok/endless-score', {
-        method: 'POST',
-        body
-      });
-    }
-
-    getOkEndlessLeaderboard(limit, offset) {
-      const count = Math.max(1, Math.min(100, Math.floor(Number(limit) || 20)));
-      const start = Math.max(0, Math.floor(Number(offset) || 0));
-      return this.request('/v1/ok/leaderboards/endless?limit=' + count + '&offset=' + start);
-    }
-
     getPendingPurchaseEvents() {
       return this.request('/v1/purchase-events/pending');
     }

@@ -19,7 +19,6 @@
     localBestScoreKey: config.localBestScoreKey || 'crystal-match-vk-best-score',
     localSubmittedScoreKey: config.localSubmittedScoreKey || 'crystal-match-vk-endless-submitted-score',
     storageAvailable: false,
-    okEndlessScoreSubmitInFlight: null,
     cloudProgress: null,
     cloudDirty: false,
     cloudRevision: 0,
@@ -39,6 +38,9 @@
     lastLeaderboardSyncValues: '',
     rafId: 0,
     runtimeRestoreTimer: null,
+    runtimeRecoveryProbeTimer: null,
+    runtimeFrameVersion: 0,
+    runtimeRecoveryAttempts: 0,
     rewardCoinSyncTimer: null,
     runtimeRecoveryEventsBound: false,
 
@@ -77,7 +79,10 @@
       } catch (error) {
         this.vkLaunchParams = null;
       }
-      if (!this.isOkClient()) {
+      if (this.isOkClient()) {
+        this.features.nativeEndlessLeaderboard = true;
+      } else {
+        this.features.nativeEndlessLeaderboard = false;
         await this.resizeDesktopVkWindow();
       }
       if (window.CrystalMatchVkBackendClient) {
@@ -166,6 +171,7 @@
       this.runtimeRestoreTimer = setTimeout(() => {
         this.runtimeRestoreTimer = null;
         this.restoreGameRuntime();
+        this.startRuntimeRecoveryProbe();
       }, 0);
       if (!reconcileCoins) return;
       if (this.rewardCoinSyncTimer) clearTimeout(this.rewardCoinSyncTimer);
@@ -193,6 +199,22 @@
       this.ensureAnimationLoop();
     },
 
+    startRuntimeRecoveryProbe() {
+      if (this.runtimeRecoveryProbeTimer) clearTimeout(this.runtimeRecoveryProbeTimer);
+      this.runtimeRecoveryAttempts = 0;
+      const check = () => {
+        const frameVersion = this.runtimeFrameVersion;
+        this.runtimeRecoveryProbeTimer = setTimeout(() => {
+          this.runtimeRecoveryProbeTimer = null;
+          if (this.runtimeFrameVersion !== frameVersion) return;
+          this.runtimeRecoveryAttempts += 1;
+          this.restoreGameRuntime();
+          if (this.runtimeRecoveryAttempts < 10) check();
+        }, 180);
+      };
+      check();
+    },
+
     ensureAnimationLoop() {
       if (this.rafId) return;
       this.rafId = requestAnimationFrame((time) => this.loop(time));
@@ -200,6 +222,7 @@
 
     loop(time) {
       this.rafId = 0;
+      this.runtimeFrameVersion += 1;
       const dt = Math.min(32, time - (this.lastTime || time));
       this.lastTime = time;
       this.updateAdaptiveQuality(time);
