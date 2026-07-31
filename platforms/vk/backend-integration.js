@@ -14,7 +14,11 @@
     },
 
     syncProgressLeaderboards() {
-      if (!this.isOkClient()) {
+      if (this.isOkClient()) {
+        if (this.game && this.game.gameMode === 'endless' && this.game.gameOver) {
+          this.publishOkEndlessScore(this.game.score);
+        }
+      } else {
         this.retryPendingEndlessScore();
       }
       if (!this.backendClient || !this.game) return Promise.resolve(false);
@@ -191,6 +195,37 @@
       }
     },
 
+    publishOkEndlessScore(score) {
+      const value = Math.max(0, Math.floor(Number(score) || 0));
+      if (!this.backendClient || !value) return Promise.resolve(false);
+      if (this.okEndlessScoreSubmitInFlight) return this.okEndlessScoreSubmitInFlight;
+      this.okEndlessScoreSubmitInFlight = this.backendClient
+        .submitOkEndlessScore(value, this.getPlatformPlayerName())
+        .then(() => true)
+        .catch((error) => {
+          this.warnPlatformIssue('OK endless score submit failed', error);
+          return false;
+        })
+        .finally(() => {
+          this.okEndlessScoreSubmitInFlight = null;
+        });
+      return this.okEndlessScoreSubmitInFlight;
+    },
+
+    async loadOkEndlessLeaderboard() {
+      if (!this.backendClient) throw new Error('BACKEND_UNAVAILABLE');
+      const cloudBest = this.cloudProgress ? Number(this.cloudProgress.endlessBestScore) : 0;
+      const score = Math.max(
+        0,
+        Math.floor(Number(cloudBest) || 0),
+        this.loadLocalBestScore(),
+        Math.floor(Number(this.game && this.game.score) || 0)
+      );
+      if (score) await this.publishOkEndlessScore(score);
+      const payload = await this.backendClient.getOkEndlessLeaderboard(20, 0);
+      return this.mapBackendLeaderboard(payload);
+    },
+
     retryPendingEndlessScore() {
       const progress = this.mergeEndlessScoreProgress(this.cloudProgress || {});
       this.cloudProgress = progress;
@@ -258,21 +293,13 @@
       );
       this.submitLeaderboardScore(score);
       if (this.isOkClient()) {
-        if (!this.vkBridge) return false;
-        this.pauseAudioForSystem();
         try {
-          const response = await this.vkBridge.send('VKWebAppShowLeaderBoardBox', {
-            user_result: score
-          });
-          if (!response || response.success === false) throw new Error('OK_LEADERBOARD_UNAVAILABLE');
-          this.game.leaderboardOpen = false;
+          this.game.setLeaderboardEntries(await this.loadOkEndlessLeaderboard());
           return true;
         } catch (error) {
-          this.warnPlatformIssue('OK native leaderboard failed', error);
-          this.game.setLeaderboardError(this.t('leaderboard.unavailable'));
+          this.warnPlatformIssue('OK endless leaderboard read failed', error);
+          this.game.setLeaderboardError(this.t('leaderboard.backendUnavailable'));
           return false;
-        } finally {
-          this.scheduleRuntimeRestore();
         }
       }
       try {
