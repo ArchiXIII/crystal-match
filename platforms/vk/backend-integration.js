@@ -374,25 +374,6 @@
       this.purchaseInFlight = true;
       this.pauseAudioForSystem();
       try {
-        if (this.isOkClient()) {
-          const name = this.game && this.game.t
-            ? this.game.t(pack.labelKey)
-            : product.item;
-          const description = this.lang === 'ru'
-            ? '\u0418\u0433\u0440\u043E\u0432\u044B\u0435 \u043C\u043E\u043D\u0435\u0442\u044B'
-            : 'Game coins';
-          const paid = await this.showOkPaymentDialog(
-            name,
-            description,
-            product.item,
-            product.votes
-          );
-          if (!paid) return false;
-          this.purchaseAwaitingConfirmation = true;
-          this.game.coinShopError = this.t('shop.processing');
-          await this.processPendingPurchases({ source: 'purchase', afterPurchase: true });
-          return true;
-        }
         const response = await this.vkBridge.send('VKWebAppShowOrderBox', {
           type: 'item',
           item: product.item
@@ -403,7 +384,6 @@
         await this.processPendingPurchases({ source: 'purchase', afterPurchase: true });
         return true;
       } catch (error) {
-        if (this.isOkClient()) this.warnPlatformIssue('OK purchase failed', error);
         return false;
       } finally {
         this.purchaseInFlight = false;

@@ -37,10 +37,6 @@
     purchaseAwaitingConfirmation: false,
     leaderboardSyncInFlight: null,
     lastLeaderboardSyncValues: '',
-    okPaymentOrigin: '',
-    okPaymentEventsBound: false,
-    okPaymentResolve: null,
-    okPaymentTimer: null,
     rafId: 0,
     runtimeRestoreTimer: null,
     rewardCoinSyncTimer: null,
@@ -81,9 +77,7 @@
       } catch (error) {
         this.vkLaunchParams = null;
       }
-      if (this.isOkClient()) {
-        this.bindOkPaymentEvents();
-      } else {
+      if (!this.isOkClient()) {
         await this.resizeDesktopVkWindow();
       }
       if (window.CrystalMatchVkBackendClient) {
@@ -102,99 +96,6 @@
         params.get('vk_client') ||
         ''
       ).toLowerCase() === 'ok';
-    },
-
-    resolveOkPaymentOrigin() {
-      const candidates = [];
-      if (window.location && window.location.ancestorOrigins && window.location.ancestorOrigins.length) {
-        candidates.push(window.location.ancestorOrigins[0]);
-      }
-      if (document.referrer) candidates.push(document.referrer);
-      for (const candidate of candidates) {
-        try {
-          const url = new URL(candidate);
-          if (url.protocol === 'https:' && (url.hostname === 'ok.ru' || url.hostname.endsWith('.ok.ru'))) {
-            return url.origin;
-          }
-        } catch (error) {}
-      }
-      return 'https://ok.ru';
-    },
-
-    bindOkPaymentEvents() {
-      if (this.okPaymentEventsBound) return;
-      this.okPaymentEventsBound = true;
-      this.okPaymentOrigin = this.resolveOkPaymentOrigin();
-      window.addEventListener('message', (event) => {
-        if (event.source !== window.parent || event.origin !== this.okPaymentOrigin || typeof event.data !== 'string') return;
-        const raw = event.data.indexOf('__FAPI__') === 0 ? event.data.slice(8) : event.data;
-        const parts = raw.split('$');
-        if (parts.length < 2) return;
-        let method;
-        let result;
-        try {
-          method = decodeURIComponent(parts[0]);
-          result = decodeURIComponent(parts[1]);
-        } catch (error) {
-          this.warnPlatformIssue('OK payment response decode failed', error);
-          return;
-        }
-        if (method !== 'showPayment' || !this.okPaymentResolve) return;
-        const resolve = this.okPaymentResolve;
-        this.okPaymentResolve = null;
-        if (this.okPaymentTimer) {
-          clearTimeout(this.okPaymentTimer);
-          this.okPaymentTimer = null;
-        }
-        const status = String(result || '').toLowerCase();
-        if (status !== 'ok' && status !== 'success') {
-          this.warnPlatformIssue('OK payment was not completed', new Error('OK_PAYMENT_' + (status || 'UNKNOWN').toUpperCase()));
-          resolve(false);
-          return;
-        }
-        resolve(true);
-      });
-    },
-
-    showOkPaymentDialog(name, description, productCode, price) {
-      if (!this.isOkClient() || window.parent === window || this.okPaymentResolve) {
-        this.warnPlatformIssue('OK payment window unavailable', new Error('OK_PAYMENT_UNAVAILABLE'));
-        return Promise.resolve(false);
-      }
-      this.bindOkPaymentEvents();
-      const args = [
-        'showPayment',
-        String(name || ''),
-        String(description || ''),
-        String(productCode || ''),
-        String(Math.max(0, Math.floor(Number(price) || 0))),
-        '',
-        '',
-        'ok',
-        'true'
-      ];
-      return new Promise((resolve) => {
-        this.okPaymentResolve = resolve;
-        this.okPaymentTimer = setTimeout(() => {
-          if (this.okPaymentResolve !== resolve) return;
-          this.okPaymentResolve = null;
-          this.okPaymentTimer = null;
-          this.warnPlatformIssue('OK payment response timeout', new Error('OK_PAYMENT_TIMEOUT'));
-          resolve(false);
-        }, 300000);
-        try {
-          window.parent.postMessage(
-            '__FAPI__' + args.map((value) => encodeURIComponent(value)).join('$'),
-            this.okPaymentOrigin
-          );
-        } catch (error) {
-          clearTimeout(this.okPaymentTimer);
-          this.okPaymentTimer = null;
-          this.okPaymentResolve = null;
-          this.warnPlatformIssue('OK payment window failed', error);
-          resolve(false);
-        }
-      });
     },
 
     getVkPlatform() {
