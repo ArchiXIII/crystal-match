@@ -29,6 +29,9 @@
     lastStoredValue: '',
     cloudRetryDelay: 4000,
     adInFlight: false,
+    bannerShowInFlight: false,
+    bannerVisible: false,
+    bannerRetryAt: 0,
     purchaseInFlight: false,
     purchaseEventsInFlight: false,
     purchaseBackendReady: null,
@@ -151,6 +154,18 @@
           if (type === 'VKWebAppViewRestore') {
             this.refreshCloudCoins();
             this.scheduleRuntimeRestore();
+            this.ensureStickyBanner();
+            return;
+          }
+          if (type === 'VKWebAppBannerAdUpdated') {
+            const data = event && event.detail ? event.detail.data : null;
+            this.bannerVisible = !!(data && data.result);
+            if (!this.bannerVisible) this.bannerRetryAt = Date.now() + 60000;
+            return;
+          }
+          if (type === 'VKWebAppBannerAdClosedByUser') {
+            this.bannerVisible = false;
+            this.bannerRetryAt = Date.now() + 600000;
           }
         };
         this.vkBridge.subscribe(this.bridgeListener);
@@ -164,6 +179,43 @@
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) this.scheduleRuntimeRestore();
       }, { passive: true });
+    },
+
+    async ensureStickyBanner() {
+      if (!this.vkBridge || this.bannerVisible || this.bannerShowInFlight) return this.bannerVisible;
+      if (Date.now() < this.bannerRetryAt) return false;
+      this.bannerShowInFlight = true;
+      try {
+        if (typeof this.vkBridge.supportsAsync === 'function') {
+          const supported = await this.vkBridge.supportsAsync('VKWebAppShowBannerAd');
+          if (!supported) {
+            this.bannerRetryAt = Date.now() + 600000;
+            return false;
+          }
+        }
+        const available = await this.vkBridge.send('VKWebAppCheckBannerAd');
+        if (!available || !available.result) {
+          this.bannerRetryAt = Date.now() + 60000;
+          return false;
+        }
+        const desktop = this.getVkPlatform() === 'desktop_web';
+        const result = await this.vkBridge.send('VKWebAppShowBannerAd', {
+          banner_location: 'bottom',
+          banner_align: desktop ? 'right' : 'center',
+          layout_type: 'resize',
+          height_type: desktop ? 'regular' : 'compact',
+          orientation: 'horizontal',
+          can_close: true
+        });
+        this.bannerVisible = !!(result && result.result);
+        if (!this.bannerVisible) this.bannerRetryAt = Date.now() + 60000;
+        return this.bannerVisible;
+      } catch (error) {
+        this.bannerRetryAt = Date.now() + 60000;
+        return false;
+      } finally {
+        this.bannerShowInFlight = false;
+      }
     },
 
     scheduleRuntimeRestore(reconcileCoins) {
