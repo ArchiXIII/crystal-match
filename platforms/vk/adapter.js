@@ -29,6 +29,9 @@
     lastStoredValue: '',
     cloudRetryDelay: 4000,
     adInFlight: false,
+    interstitialCooldownMs: 4 * 60 * 1000,
+    interstitialLastShownKey: 'crystal-match-vk-interstitial-last-shown',
+    lastInterstitialShownAt: 0,
     purchaseInFlight: false,
     purchaseEventsInFlight: false,
     purchaseBackendReady: null,
@@ -811,7 +814,21 @@
     },
 
     showInterstitialAd() {
-      return this.showVkAd('interstitial');
+      let storedAt = 0;
+      try {
+        storedAt = Math.max(0, Math.floor(Number(localStorage.getItem(this.interstitialLastShownKey)) || 0));
+      } catch (_) {}
+      const lastShownAt = Math.max(this.lastInterstitialShownAt, storedAt);
+      if (Date.now() - lastShownAt < this.interstitialCooldownMs) return Promise.resolve(false);
+      return this.showVkAd('interstitial').then((shown) => {
+        if (!shown) return false;
+        const shownAt = Date.now();
+        this.lastInterstitialShownAt = shownAt;
+        try {
+          localStorage.setItem(this.interstitialLastShownKey, String(shownAt));
+        } catch (_) {}
+        return true;
+      });
     }
   };
 
