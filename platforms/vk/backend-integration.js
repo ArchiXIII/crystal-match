@@ -312,7 +312,22 @@
     },
 
     async loadGameOverLeaderboard(score, type) {
-      if (!this.game || type !== 'stars') return false;
+      if (!this.game) return false;
+      if (type !== 'stars') {
+        try {
+          const entries = this.isOkClient()
+            ? await this.loadOkEndlessLeaderboard()
+            : await this.loadVkEndlessLeaderboard();
+          this.game.setGameOverLeaderboardEntries(entries);
+          return true;
+        } catch (error) {
+          this.warnPlatformIssue('Game over endless leaderboard read failed', error);
+          this.game.setGameOverLeaderboardError(this.t(
+            this.isOkClient() ? 'leaderboard.backendUnavailable' : 'leaderboard.unavailable'
+          ));
+          return false;
+        }
+      }
       try {
         this.game.setGameOverLeaderboardEntries(await this.loadStarsLeaderboard());
         return true;

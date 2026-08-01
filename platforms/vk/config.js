@@ -21,7 +21,7 @@
       starsLeaderboard: true,
       xpLeaderboard: false,
       gameOverLeaderboard: true,
-      endlessGameOverLeaderboard: false,
+      endlessGameOverLeaderboard: true,
       paidCoinPacks: true,
       developerGames: false
     },
