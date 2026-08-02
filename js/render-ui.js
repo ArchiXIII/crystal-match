@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   'use strict';
 
   const Renderer = window.CrystalMatchRenderer;
@@ -10,7 +10,7 @@
       let size = Math.max(minSize || 8, startSize || 12);
       const safeWidth = Math.max(1, maxWidth || 1);
       const fontWeight = weight || '900';
-      const fontFamily = family || 'Arial';
+      const fontFamily = family || 'CrystalUI, Arial';
       ctx.font = fontWeight + ' ' + size + 'px ' + fontFamily;
       while (size > (minSize || 8) && ctx.measureText(String(text || '')).width > safeWidth) {
         size -= 0.5;
@@ -22,7 +22,7 @@
   Renderer.prototype.fitWrappedFont = function (ctx, text, maxWidth, maxHeight, startSize, minSize, weight, lineGap, family) {
       let size = Math.max(minSize || 8, startSize || 12);
       const fontWeight = weight || '800';
-      const fontFamily = family || 'Arial';
+      const fontFamily = family || 'CrystalUI, Arial';
       const gap = lineGap === undefined ? 2 : lineGap;
       let lineHeight = Math.max(size + gap, size * 1.12);
       const fits = () => {
@@ -127,11 +127,11 @@
   Renderer.prototype.fitFont = function (ctx, text, weight, size, minSize, maxWidth) {
       let fontSize = size;
       do {
-        ctx.font = weight + ' ' + fontSize + 'px Arial';
+        ctx.font = weight + ' ' + fontSize + 'px CrystalUI, Arial';
         if (ctx.measureText(text).width <= maxWidth || fontSize <= minSize) break;
         fontSize -= 1;
       } while (fontSize > minSize);
-      return weight + ' ' + fontSize + 'px Arial';
+      return weight + ' ' + fontSize + 'px CrystalUI, Arial';
     };
 
   Renderer.prototype.drawCoinShopPlus = function (ctx, x, y, r) {
@@ -301,10 +301,10 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff4d6';
-      ctx.font = '900 22px Arial';
+      ctx.font = '900 22px CrystalUI, Arial';
       ctx.fillText(ru ? 'Р СџР С•Р Р†Р ВµРЎР‚Р Р…Р С‘РЎвЂљР Вµ РЎРЊР С”РЎР‚Р В°Р Р…' : 'Rotate your device', cx, y + h - 88);
       ctx.fillStyle = 'rgba(255, 244, 214, 0.78)';
-      ctx.font = '800 14px Arial';
+      ctx.font = '800 14px CrystalUI, Arial';
       this.wrapText(
         ctx,
         ru ? 'Р ВР С–РЎР‚Р В° РЎС“Р Т‘Р С•Р В±Р Р…Р ВµР Вµ РЎР‚Р В°Р В±Р С•РЎвЂљР В°Р ВµРЎвЂљ Р Р† Р С—Р С•РЎР‚РЎвЂљРЎР‚Р ВµРЎвЂљР Р…Р С•Р С РЎР‚Р ВµР В¶Р С‘Р СР Вµ' : 'This game works best in portrait mode',
@@ -415,7 +415,7 @@
       ctx.fillStyle = '#fff4d6';
       ctx.shadowColor = 'rgba(255, 229, 144, 0.45)';
       ctx.shadowBlur = this.shadow(8);
-      ctx.font = '900 ' + Math.floor(r * 0.9) + 'px Arial';
+      ctx.font = '900 ' + Math.floor(r * 0.9) + 'px CrystalUI, Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(label, x, y + 1);
@@ -476,7 +476,7 @@
 
         ctx.fillStyle = dark;
         ctx.shadowBlur = 0;
-        ctx.font = '900 ' + Math.floor(r * 0.42) + 'px Arial';
+        ctx.font = '900 ' + Math.floor(r * 0.42) + 'px CrystalUI, Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('1', x, y - r * 0.1);
@@ -729,12 +729,12 @@
       ctx.fillStyle = '#fff4d6';
       ctx.shadowColor = 'rgba(246, 189, 76, 0.62)';
       ctx.shadowBlur = this.shadow(12);
-      ctx.font = '900 ' + (compact ? 22 : 26) + 'px Arial';
+      ctx.font = '900 ' + (compact ? 22 : 26) + 'px CrystalUI, Arial';
       ctx.fillText(this.t('exitRound.title'), x + w / 2, y + (compact ? 42 : 50));
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = 'rgba(255, 244, 214, 0.82)';
-      ctx.font = '800 ' + (compact ? 14 : 16) + 'px Arial';
+      ctx.font = '800 ' + (compact ? 14 : 16) + 'px CrystalUI, Arial';
       ctx.fillText(this.t('exitRound.text'), x + w / 2, y + (compact ? 78 : 92), w - 42);
 
       const gap = compact ? 10 : 14;
@@ -771,7 +771,7 @@
       ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.fillStyle = primary ? '#120b05' : '#fff4d6';
-      ctx.font = '900 ' + Math.max(13, Math.min(16, h * 0.31)) + 'px Arial';
+      ctx.font = '900 ' + Math.max(13, Math.min(16, h * 0.31)) + 'px CrystalUI, Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(label, x + w / 2, y + h / 2 + 1, w - 16);

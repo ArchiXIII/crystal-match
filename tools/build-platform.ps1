@@ -27,7 +27,7 @@ New-Item -ItemType Directory -Path $destination -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $destination 'platforms') -Force | Out-Null
 
 Copy-Item -LiteralPath (Join-Path $root 'index.html') -Destination (Join-Path $destination 'index.html')
-foreach ($directory in @('css', 'js', 'sounds', 'sprites')) {
+foreach ($directory in @('css', 'fonts', 'js', 'sounds', 'sprites')) {
   Copy-Item -LiteralPath (Join-Path $root $directory) -Destination (Join-Path $destination $directory) -Recurse
 }
 Copy-Item -LiteralPath (Join-Path $root ("platforms\{0}" -f $Platform)) -Destination (Join-Path $destination 'platforms') -Recurse

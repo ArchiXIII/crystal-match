@@ -61,7 +61,7 @@
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = '#f6bd4c';
-      ctx.font = '900 ' + (compact ? 14 : 15) + 'px Arial';
+      ctx.font = '900 ' + (compact ? 14 : 15) + 'px CrystalUI, Arial';
       ctx.fillText(this.t('profile.totalXp'), x + w / 2, y + (compact ? 150 : 168));
 
       const xpY = y + (compact ? 194 : 216);
@@ -76,7 +76,7 @@
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = 'rgba(255, 244, 214, 0.82)';
-      ctx.font = '800 ' + (compact ? 13 : 14) + 'px Arial';
+      ctx.font = '800 ' + (compact ? 13 : 14) + 'px CrystalUI, Arial';
       this.wrapText(ctx, this.t('profile.thanks'), x + 28, y + h - (compact ? 56 : 62), w - 56, compact ? 18 : 20);
       ctx.restore();
     };

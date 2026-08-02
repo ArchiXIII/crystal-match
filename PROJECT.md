@@ -23,7 +23,7 @@ HTML5 Canvas match-3 игра Milevora team для браузерных игро
 - `js/levels.js` — уровни 1–100.
 - `platforms/` — конфигурации и адаптеры площадок.
 - `tools/build-platform.ps1` — создание отдельных платформенных архивов.
-- `sprites/` и `sounds/` — игровые ресурсы.
+- `sprites/`, `sounds/` и `fonts/` — игровые ресурсы; интерфейс использует локальный variable-шрифт CrystalUI (Rubik, OFL 1.1).
 
 Порядок подключения скриптов в `index.html` важен: файлы расширяют общие классы через prototype.
 

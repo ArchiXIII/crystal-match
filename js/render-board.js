@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   'use strict';
 
   const Renderer = window.CrystalMatchRenderer;
@@ -910,7 +910,7 @@
         ctx.fillStyle = '#ffe590';
         ctx.shadowColor = 'rgba(255, 196, 61, 0.82)';
         ctx.shadowBlur = this.shadow(18);
-        ctx.font = '800 ' + Math.max(18, l.cell * 0.3) + 'px Arial';
+        ctx.font = '800 ' + Math.max(18, l.cell * 0.3) + 'px CrystalUI, Arial';
         ctx.textAlign = 'center';
         ctx.fillText(popup.text, l.boardX + (popup.x + 0.5) * l.cell, l.boardY + (popup.y + 0.5) * l.cell);
         ctx.restore();
@@ -947,7 +947,7 @@
         ctx.scale(bounce, bounce);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.font = '1000 ' + fontSize + 'px Arial';
+        ctx.font = '900 ' + fontSize + 'px CrystalUI, Arial';
         ctx.lineJoin = 'round';
         ctx.shadowColor = reaction.power === 'rank' ? 'rgba(255, 229, 144, 0.92)' : 'rgba(246, 189, 76, 0.78)';
         ctx.shadowBlur = this.shadow(strong ? 24 : medium ? 16 : 10);
@@ -955,7 +955,7 @@
         const text = reaction.text || '';
         const maxTextW = l.boardWidth + l.cell * 0.7;
         if (ctx.measureText(text).width > maxTextW && this.fitFont) {
-          ctx.font = this.fitFont(ctx, text, '1000', fontSize, 15, maxTextW);
+          ctx.font = this.fitFont(ctx, text, '900', fontSize, 15, maxTextW);
         }
         ctx.strokeStyle = 'rgba(16, 8, 4, 0.88)';
         ctx.lineWidth = Math.max(4, fontSize * 0.16);
@@ -970,7 +970,7 @@
 
         if (reaction.subtext) {
           ctx.shadowBlur = this.shadow(8);
-          ctx.font = '900 ' + Math.max(12, fontSize * 0.38) + 'px Arial';
+          ctx.font = '900 ' + Math.max(12, fontSize * 0.38) + 'px CrystalUI, Arial';
           ctx.strokeStyle = 'rgba(16, 8, 4, 0.72)';
           ctx.lineWidth = Math.max(2, fontSize * 0.08);
           ctx.strokeText(reaction.subtext, 0, fontSize * 0.74);

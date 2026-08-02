@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   'use strict';
 
   const Renderer = window.CrystalMatchRenderer;
@@ -69,7 +69,7 @@
       const hasChapterName = chapterName && chapterName !== chapterNameKey;
       const chapterTitleY = hasChapterName ? titleY + (mobilePortrait ? 14 : 17) : titleY + titlePanelH / 2;
       const chapterNameY = titleY + (mobilePortrait ? 32 : 38);
-      ctx.font = '900 ' + (mobilePortrait ? 13 : 16) + 'px Arial';
+      ctx.font = '900 ' + (mobilePortrait ? 13 : 16) + 'px CrystalUI, Arial';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = 'rgba(20, 10, 4, 0.88)';
       ctx.lineWidth = 3;
@@ -81,7 +81,7 @@
       ctx.shadowBlur = 0;
 
       if (hasChapterName) {
-        ctx.font = '900 ' + (mobilePortrait ? 15 : 19) + 'px Arial';
+        ctx.font = '900 ' + (mobilePortrait ? 15 : 19) + 'px CrystalUI, Arial';
         ctx.strokeStyle = 'rgba(20, 10, 4, 0.9)';
         ctx.lineWidth = 3.4;
         ctx.strokeText(chapterName, x + w / 2, chapterNameY);
@@ -95,11 +95,11 @@
       const starSize = mobilePortrait ? 18 : 25;
       const starsText = this.t('levels.starsCount', { earned: chapterEarnedStars, max: chapterMaxStars || 30 });
       let starsFontSize = mobilePortrait ? 14 : 15;
-      ctx.font = '900 ' + starsFontSize + 'px Arial';
+      ctx.font = '900 ' + starsFontSize + 'px CrystalUI, Arial';
       const maxStarsW = Math.max(54, x + w - (titleX + titleW + 22) - 18);
       while (starsFontSize > 11 && Math.max(starSize, ctx.measureText(starsText).width) > maxStarsW) {
         starsFontSize -= 1;
-        ctx.font = '900 ' + starsFontSize + 'px Arial';
+        ctx.font = '900 ' + starsFontSize + 'px CrystalUI, Arial';
       }
       const starsW = Math.max(starSize, ctx.measureText(starsText).width);
       const starsAreaLeft = titleX + titleW;
@@ -170,7 +170,7 @@
 
       if (this.game.levelSelectMessage && this.game.levelSelectMessageUntil > this.game.time) {
         ctx.fillStyle = '#fff4d6';
-        ctx.font = '900 ' + (mobilePortrait ? 13 : 14) + 'px Arial';
+        ctx.font = '900 ' + (mobilePortrait ? 13 : 14) + 'px CrystalUI, Arial';
         ctx.textAlign = 'center';
         ctx.fillText(this.game.levelSelectMessage, x + w / 2, buttonY - 16);
       }
@@ -324,7 +324,7 @@
       ctx.lineWidth = available ? 2.2 : 2;
       ctx.shadowColor = available ? 'rgba(42, 20, 4, 0.5)' : 'transparent';
       ctx.shadowBlur = this.shadow(3);
-      ctx.font = '900 ' + Math.max(18, Math.min(26, imgSize * 0.28)) + 'px Arial';
+      ctx.font = '900 ' + Math.max(18, Math.min(26, imgSize * 0.28)) + 'px CrystalUI, Arial';
       ctx.strokeText(number, x + w / 2, imgY + imgSize * 0.5);
       ctx.fillText(number, x + w / 2, imgY + imgSize * 0.5);
       ctx.shadowBlur = 0;
@@ -426,7 +426,7 @@
       ctx.fillStyle = primary && enabled ? '#140b04' : (enabled ? '#fff4d6' : 'rgba(255, 244, 214, 0.4)');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = '900 ' + Math.max(15, Math.min(20, rect.w * 0.14)) + 'px Arial';
+      ctx.font = '900 ' + Math.max(15, Math.min(20, rect.w * 0.14)) + 'px CrystalUI, Arial';
       ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h / 2 + 1);
       ctx.restore();
     };

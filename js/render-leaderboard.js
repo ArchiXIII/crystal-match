@@ -30,15 +30,15 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff4d6';
-      ctx.font = '900 ' + (compact ? 23 : 25) + 'px Arial';
+      ctx.font = '900 ' + (compact ? 23 : 25) + 'px CrystalUI, Arial';
       ctx.fillText(this.t('leaderboard.title'), x + w / 2, y + tabH + 28);
       const description = activeTab === 'stars' ? this.t('leaderboard.descStars') : this.t('leaderboard.descEndless');
       let descFont = compact ? 9.5 : 11;
-      ctx.font = '900 ' + descFont + 'px Arial';
+      ctx.font = '900 ' + descFont + 'px CrystalUI, Arial';
       const descMaxW = w - (compact ? 70 : 92);
       while (descFont > 7.5 && ctx.measureText(description).width > descMaxW) {
         descFont -= 0.5;
-        ctx.font = '900 ' + descFont + 'px Arial';
+        ctx.font = '900 ' + descFont + 'px CrystalUI, Arial';
       }
       ctx.fillStyle = 'rgba(255, 229, 144, 0.86)';
       ctx.shadowColor = 'rgba(246, 189, 76, 0.25)';
@@ -61,7 +61,7 @@
 
       if (this.game.leaderboardLoading) {
         ctx.fillStyle = 'rgba(255, 244, 214, 0.82)';
-        ctx.font = '800 16px Arial';
+        ctx.font = '800 16px CrystalUI, Arial';
         ctx.fillText(this.t('leaderboard.loading'), x + w / 2, y + h / 2);
         ctx.restore();
         return;
@@ -69,7 +69,7 @@
 
       if (this.game.leaderboardError) {
         ctx.fillStyle = 'rgba(255, 244, 214, 0.82)';
-        ctx.font = '800 14px Arial';
+        ctx.font = '800 14px CrystalUI, Arial';
         this.wrapText(ctx, this.game.leaderboardError, x + 30, y + h / 2 - 20, w - 60, 20);
         ctx.restore();
         return;
@@ -78,7 +78,7 @@
       const entries = this.game.leaderboardEntries || [];
       if (!entries.length) {
         ctx.fillStyle = 'rgba(255, 244, 214, 0.76)';
-        ctx.font = '800 15px Arial';
+        ctx.font = '800 15px CrystalUI, Arial';
         ctx.fillText(this.t('leaderboard.empty'), x + w / 2, y + h / 2);
         ctx.restore();
         return;
@@ -95,7 +95,7 @@
         if (entry.divider) {
           ctx.textAlign = 'center';
           ctx.fillStyle = 'rgba(255, 229, 144, 0.6)';
-          ctx.font = '900 ' + Math.max(14, rowH * 0.54) + 'px Arial';
+          ctx.font = '900 ' + Math.max(14, rowH * 0.54) + 'px CrystalUI, Arial';
           ctx.fillText('...', x + w / 2, rowY + rowH / 2);
           return;
         }
@@ -148,7 +148,7 @@
       ctx.fillStyle = active ? '#ffe590' : 'rgba(255, 244, 214, 0.72)';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = '900 ' + (compact ? 13 : 14) + 'px Arial';
+      ctx.font = '900 ' + (compact ? 13 : 14) + 'px CrystalUI, Arial';
       const textShift = side === 'left' ? -slant * 0.12 : slant * 0.12;
       ctx.fillText(label, x + w / 2 + textShift, y + h / 2 + 1, w - slant - 12);
       ctx.restore();
@@ -293,18 +293,18 @@
       } else {
         ctx.textAlign = 'center';
         ctx.fillStyle = isPlayer ? '#ffe590' : '#f6bd4c';
-        ctx.font = '900 ' + (compact ? 13 : 15) + 'px Arial';
+        ctx.font = '900 ' + (compact ? 13 : 15) + 'px CrystalUI, Arial';
         ctx.fillText(String(rank), x + 28, y + h / 2 + 1);
       }
 
       ctx.textAlign = 'left';
       ctx.fillStyle = isPlayer ? '#ffe590' : '#fff4d6';
-      ctx.font = '800 ' + (compact ? 12 : 14) + 'px Arial';
+      ctx.font = '800 ' + (compact ? 12 : 14) + 'px CrystalUI, Arial';
       ctx.fillText(entry.name || this.t('leaderboard.player'), x + 58, y + h / 2 + 1, w - 160);
 
       ctx.textAlign = 'right';
       ctx.fillStyle = medal ? medal.main : (isPlayer ? '#ffe590' : '#fff4d6');
-      ctx.font = '900 ' + (compact ? 12 : 14) + 'px Arial';
+      ctx.font = '900 ' + (compact ? 12 : 14) + 'px CrystalUI, Arial';
       ctx.fillText(String(entry.score || 0).replace(/\B(?=(\d{3})+(?!\d))/g, ' '), x + w - 12, y + h / 2 + 1);
       ctx.textAlign = 'left';
     };
@@ -327,7 +327,7 @@
 
       ctx.shadowBlur = 0;
       ctx.fillStyle = '#130b04';
-      ctx.font = '900 ' + Math.max(9, r * 0.78) + 'px Arial';
+      ctx.font = '900 ' + Math.max(9, r * 0.78) + 'px CrystalUI, Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(rank, x, y + 1);

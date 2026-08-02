@@ -31,12 +31,12 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff4d6';
-      ctx.font = '900 ' + (compact ? 22 : 25) + 'px Arial';
+      ctx.font = '900 ' + (compact ? 22 : 25) + 'px CrystalUI, Arial';
       ctx.fillText(this.t('profile.xpLeaderboard'), x + w / 2, y + (compact ? 48 : 56));
 
       if (this.game.xpLeaderboardLoading) {
         ctx.fillStyle = 'rgba(255, 244, 214, 0.82)';
-        ctx.font = '800 15px Arial';
+        ctx.font = '800 15px CrystalUI, Arial';
         ctx.fillText(this.t('leaderboard.loading'), x + w / 2, y + h / 2);
         ctx.restore();
         return;
@@ -44,7 +44,7 @@
 
       if (this.game.xpLeaderboardError) {
         ctx.fillStyle = 'rgba(255, 244, 214, 0.78)';
-        ctx.font = '800 13px Arial';
+        ctx.font = '800 13px CrystalUI, Arial';
         this.wrapText(ctx, this.game.xpLeaderboardError, x + 28, y + h / 2 - 18, w - 56, 18);
         ctx.restore();
         return;
@@ -53,7 +53,7 @@
       const rows = this.xpLeaderboardRows(this.game.xpLeaderboardEntries || []);
       if (!rows.length) {
         ctx.fillStyle = 'rgba(255, 244, 214, 0.76)';
-        ctx.font = '800 15px Arial';
+        ctx.font = '800 15px CrystalUI, Arial';
         ctx.fillText(this.t('leaderboard.empty'), x + w / 2, y + h / 2);
         ctx.restore();
         return;
@@ -68,7 +68,7 @@
         if (entry.divider) {
           ctx.textAlign = 'center';
           ctx.fillStyle = 'rgba(255, 229, 144, 0.58)';
-          ctx.font = '900 ' + Math.max(13, rowH * 0.52) + 'px Arial';
+          ctx.font = '900 ' + Math.max(13, rowH * 0.52) + 'px CrystalUI, Arial';
           ctx.fillText('...', x + w / 2, rowY + rowH / 2);
           return;
         }

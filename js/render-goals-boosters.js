@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   'use strict';
 
   const Renderer = window.CrystalMatchRenderer;
@@ -63,20 +63,20 @@
         const titleSize = desktopGoalTight ? 13 : 14;
         const goalSize = desktopGoalTight ? 17 : 18;
         const progressSize = desktopGoalTight ? 18 : 19;
-        ctx.font = '900 ' + titleSize + 'px Arial';
+        ctx.font = '900 ' + titleSize + 'px CrystalUI, Arial';
         ctx.fillStyle = '#f6bd4c';
         ctx.fillText(this.t('goal.title'), x + 14, titleY);
         ctx.fillStyle = '#fff4d6';
         const desktopGoalFont = this.fitTextFontSize(ctx, goal.text, w - 28, goalSize, desktopGoalTight ? 10 : 11, '900');
-        ctx.font = '900 ' + desktopGoalFont + 'px Arial';
+        ctx.font = '900 ' + desktopGoalFont + 'px CrystalUI, Arial';
         ctx.fillText(goal.text, x + 14, goalTextY);
         ctx.fillStyle = '#ffd77a';
         const desktopProgressText = goal.progress + ' / ' + goal.target;
         const desktopProgressFont = this.fitTextFontSize(ctx, desktopProgressText, w - 96, progressSize, 11, '900');
-        ctx.font = '900 ' + desktopProgressFont + 'px Arial';
+        ctx.font = '900 ' + desktopProgressFont + 'px CrystalUI, Arial';
         ctx.fillText(desktopProgressText, x + 14, lineY);
         ctx.textAlign = 'right';
-        ctx.font = '900 ' + (desktopGoalTight ? Math.max(14, rewardTextSize - 1) : rewardTextSize) + 'px Arial';
+        ctx.font = '900 ' + (desktopGoalTight ? Math.max(14, rewardTextSize - 1) : rewardTextSize) + 'px CrystalUI, Arial';
         ctx.fillText(rewardText, rewardCoinX - rewardCoinR - rewardTextGap, lineY, Math.max(44, w * 0.28));
         this.drawCoin(ctx, rewardCoinX, lineY, rewardCoinR);
       } else if (compactGoal) {
@@ -93,13 +93,13 @@
         const progressSize = compact ? (tight ? 18 : 19) : 22;
 
         ctx.fillStyle = '#fff4d6';
-        ctx.font = '900 ' + titleSize + 'px Arial';
+        ctx.font = '900 ' + titleSize + 'px CrystalUI, Arial';
         ctx.textAlign = 'left';
 
         ctx.fillStyle = '#ffd77a';
         const progressMaxW = Math.max(tight ? 48 : 58, Math.min(tight ? 66 : 78, leftW * 0.42));
         const progressFont = this.fitTextFontSize(ctx, progressText, progressMaxW, progressSize, tight ? 12 : 13, '900');
-        ctx.font = '900 ' + progressFont + 'px Arial';
+        ctx.font = '900 ' + progressFont + 'px CrystalUI, Arial';
         const progressW = Math.max(tight ? 48 : 58, Math.min(progressMaxW, ctx.measureText(progressText).width + 6));
         ctx.textAlign = 'right';
         ctx.fillText(progressText, progressRight, titleY);
@@ -107,24 +107,24 @@
         ctx.fillStyle = '#fff4d6';
         const titleMaxW = Math.max(38, leftW - progressW - 12);
         const titleFont = this.fitTextFontSize(ctx, goal.text, titleMaxW, titleSize, tight ? 8 : 9, '900');
-        ctx.font = '900 ' + titleFont + 'px Arial';
+        ctx.font = '900 ' + titleFont + 'px CrystalUI, Arial';
         ctx.textAlign = 'left';
         ctx.fillText(goal.text, x + leftPad, titleY);
 
         if (mobileLevelGoal) {
           ctx.textAlign = 'center';
           ctx.fillStyle = '#f6bd4c';
-          ctx.font = '900 ' + (tight ? 11 : 13) + 'px Arial';
+          ctx.font = '900 ' + (tight ? 11 : 13) + 'px CrystalUI, Arial';
           ctx.fillText(this.t('hud.moves'), movesX, movesLabelY);
           ctx.fillStyle = '#fff4d6';
           this.drawMovesValue(ctx, Math.max(0, this.game.levelMovesLeft || 0), movesX, movesValueY, tight ? 25 : 31, 'center');
         }
       } else {
-        ctx.font = '900 ' + (compact ? (tight ? 15 : 14) : 17) + 'px Arial';
+        ctx.font = '900 ' + (compact ? (tight ? 15 : 14) : 17) + 'px CrystalUI, Arial';
         const leftPad = tight ? 12 : 16;
         const rightPad = tight ? 12 : 16;
         const titleFont = ctx.font;
-        ctx.font = '900 ' + rewardTextSize + 'px Arial';
+        ctx.font = '900 ' + rewardTextSize + 'px CrystalUI, Arial';
         const rewardTextW = ctx.measureText(rewardText).width;
         ctx.font = titleFont;
         const rewardGroupW = rewardTextW + rewardCoinR * 2 + rewardTextGap + 8;
@@ -132,16 +132,16 @@
         const progressRight = x + w - rightPad - rewardGroupW;
         const titleMaxW = Math.max(50, progressRight - (x + leftPad) - progressMaxW - 8);
         const topGoalFont = this.fitTextFontSize(ctx, goal.text, titleMaxW, compact ? (tight ? 15 : 14) : 17, tight ? 8 : 9, '900');
-        ctx.font = '900 ' + topGoalFont + 'px Arial';
+        ctx.font = '900 ' + topGoalFont + 'px CrystalUI, Arial';
         ctx.fillText(goal.text, x + leftPad, lineY);
 
         ctx.fillStyle = '#ffd77a';
         const topProgressText = goal.progress + '/' + goal.target;
         const topProgressFont = this.fitTextFontSize(ctx, topProgressText, progressMaxW, compact ? (tight ? 14 : 13) : 15, 9, '900');
-        ctx.font = '900 ' + topProgressFont + 'px Arial';
+        ctx.font = '900 ' + topProgressFont + 'px CrystalUI, Arial';
         ctx.textAlign = 'right';
         ctx.fillText(topProgressText, progressRight, lineY);
-        ctx.font = '900 ' + rewardTextSize + 'px Arial';
+        ctx.font = '900 ' + rewardTextSize + 'px CrystalUI, Arial';
         ctx.fillText(rewardText, rewardCoinX - rewardCoinR - rewardTextGap, lineY, Math.max(42, rewardGroupW - rewardCoinR * 2));
         this.drawCoin(ctx, rewardCoinX, lineY, rewardCoinR);
       }
@@ -224,10 +224,10 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       let fontSize = l.desktopGoal ? 15 : (compact ? (tight ? 15 : 16) : 17);
-      ctx.font = '900 ' + fontSize + 'px Arial';
+      ctx.font = '900 ' + fontSize + 'px CrystalUI, Arial';
       while (fontSize > 8 && (ctx.measureText(label).width > w - 12 || fontSize > h * 0.46)) {
         fontSize -= 1;
-        ctx.font = '900 ' + fontSize + 'px Arial';
+        ctx.font = '900 ' + fontSize + 'px CrystalUI, Arial';
       }
       ctx.fillText(label, x + w / 2, y + h / 2 + 1);
       ctx.restore();
@@ -297,7 +297,7 @@
       const fittedHint = this.fitWrappedFont(ctx, hint.text, hintMaxW, hintMaxH, hintFontSize, sideDesktopHint ? 9 : 8, '900', sideDesktopHint ? 2 : 3);
       const hintLineHeight = fittedHint.lineHeight;
       ctx.fillStyle = '#fff4d6';
-      ctx.font = '900 ' + fittedHint.size + 'px Arial';
+      ctx.font = '900 ' + fittedHint.size + 'px CrystalUI, Arial';
       ctx.textBaseline = 'middle';
       if (align === 'left') {
         ctx.textAlign = 'left';
@@ -350,7 +350,7 @@
         ctx.globalAlpha = affordable ? 1 : 0.45;
         ctx.shadowBlur = 0;
         ctx.fillStyle = affordable ? '#fff4d6' : 'rgba(255,255,255,0.58)';
-        ctx.font = '900 ' + Math.max(12, Math.min(16, cardW * 0.15)) + 'px Arial';
+        ctx.font = '900 ' + Math.max(12, Math.min(16, cardW * 0.15)) + 'px CrystalUI, Arial';
         ctx.textAlign = 'center';
         const priceCenterX = x + cardW * 0.71;
         const coinR = Math.max(10, Math.min(14, cardH * 0.15));
@@ -415,10 +415,10 @@
       ctx.fillStyle = '#140b04';
       const buttonText = this.game.gameMode === 'level' ? this.t('endRound.levelButton') : this.t('endRound.button');
       let buttonFontSize = Math.max(tight ? 12 : 15, Math.min(tight ? 15 : 20, w * 0.12));
-      ctx.font = '900 ' + buttonFontSize + 'px Arial';
+      ctx.font = '900 ' + buttonFontSize + 'px CrystalUI, Arial';
       while (buttonFontSize > (l.goalSide ? 9 : (tight ? 12 : 13)) && ctx.measureText(buttonText).width > w - 14) {
         buttonFontSize -= 1;
-        ctx.font = '900 ' + buttonFontSize + 'px Arial';
+        ctx.font = '900 ' + buttonFontSize + 'px CrystalUI, Arial';
       }
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -436,11 +436,11 @@
         const hintBottom = panelY + panelH - 8;
         let fontSize = 11;
         let lineHeight = 12;
-        ctx.font = '800 ' + fontSize + 'px Arial';
+        ctx.font = '800 ' + fontSize + 'px CrystalUI, Arial';
         while (fontSize > 8 && this.wrappedLineCount(ctx, hint, hintW) * lineHeight > hintBottom - hintTop) {
           fontSize -= 1;
           lineHeight = Math.max(9, fontSize + 1);
-          ctx.font = '800 ' + fontSize + 'px Arial';
+          ctx.font = '800 ' + fontSize + 'px CrystalUI, Arial';
         }
         this.wrapTextLeft(ctx, hint, hintX, hintTop, hintW, lineHeight, hintBottom);
       } else {
@@ -449,11 +449,11 @@
         const hintBottom = panelY + panelH - 8;
         let fontSize = l.goalSide ? 13 : 12;
         let lineHeight = l.goalSide ? 17 : 14;
-        ctx.font = '800 ' + fontSize + 'px Arial';
+        ctx.font = '800 ' + fontSize + 'px CrystalUI, Arial';
         while (fontSize > 8 && this.wrappedLineCount(ctx, hint, hintW) * lineHeight > hintBottom - hintY) {
           fontSize -= 1;
           lineHeight = Math.max(9, fontSize + 2);
-          ctx.font = '800 ' + fontSize + 'px Arial';
+          ctx.font = '800 ' + fontSize + 'px CrystalUI, Arial';
         }
         this.wrapText(ctx, hint, panelX + 9, hintY, hintW, lineHeight);
       }
