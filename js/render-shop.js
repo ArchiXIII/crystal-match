@@ -36,7 +36,7 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff4d6';
-      ctx.font = '900 ' + (compact ? 22 : 25) + 'px CrystalUI, Arial';
+      ctx.font = '800 ' + (compact ? 22 : 25) + 'px CrystalUI, Arial';
       ctx.fillText(this.t('shop.title'), x + w / 2, y + 38);
 
       const adX = x + (compact ? 14 : 18);
@@ -87,7 +87,7 @@
       ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.fillStyle = '#fff4d6';
-      ctx.font = '800 ' + (compact ? 13 : 14) + 'px CrystalUI, Arial';
+      ctx.font = '700 ' + (compact ? 13 : 14) + 'px CrystalUI, Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       this.wrapText(ctx, message, statusX + 16, statusY + (compact ? 20 : 22), statusW - 32, compact ? 18 : 20);
@@ -130,10 +130,10 @@
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       ctx.fillStyle = info.available ? '#fff4d6' : 'rgba(255, 244, 214, 0.58)';
-      ctx.font = '900 ' + (compact ? 13 : 15) + 'px CrystalUI, Arial';
+      ctx.font = '800 ' + (compact ? 13 : 15) + 'px CrystalUI, Arial';
       ctx.fillText(this.t('ad.reward.title'), x + 44, y + h * 0.34, w * 0.48);
       ctx.fillStyle = info.available ? '#f6bd4c' : 'rgba(246, 189, 76, 0.58)';
-      ctx.font = '900 ' + (compact ? 16 : 18) + 'px CrystalUI, Arial';
+      ctx.font = '800 ' + (compact ? 16 : 18) + 'px CrystalUI, Arial';
       const rewardText = this.t('ad.reward.action');
       ctx.fillText(rewardText, x + 44, y + h * 0.68);
       const rewardW = ctx.measureText(rewardText).width;
@@ -158,7 +158,7 @@
       const label = info.pending
         ? this.t('ad.reward.pending')
         : (info.available ? this.t('ad.reward.ready') : this.formatDuration(info.remainingMs));
-      ctx.font = '900 ' + (info.available || info.pending ? (compact ? 10 : 11) : (compact ? 15 : 17)) + 'px CrystalUI, Arial';
+      ctx.font = '800 ' + (info.available || info.pending ? (compact ? 10 : 11) : (compact ? 15 : 17)) + 'px CrystalUI, Arial';
       ctx.fillText(label, buttonX + buttonW / 2, buttonY + buttonH / 2 + 1);
       ctx.restore();
     };
@@ -210,7 +210,7 @@
       ctx.fillStyle = disabled ? 'rgba(255, 244, 214, 0.5)' : (amountShine > 0.52 ? '#fff7cf' : '#ffe590');
       ctx.shadowColor = disabled ? 'transparent' : 'rgba(246, 189, 76, ' + (0.26 + amountShine * 0.24).toFixed(3) + ')';
       ctx.shadowBlur = this.shadow(disabled ? 0 : 5 + amountShine * 5);
-      ctx.font = this.fitFont(ctx, amountText, '900', amountFontSize, 11, w - 36 - coinR * 2 - amountGap);
+      ctx.font = this.fitFont(ctx, amountText, '800', amountFontSize, 11, w - 36 - coinR * 2 - amountGap);
       const amountW = ctx.measureText(amountText).width;
       const amountX = x + (w - amountW - amountGap - coinR * 2) / 2;
       ctx.fillText(amountText, amountX, amountY + 1);
@@ -232,7 +232,7 @@
       ctx.lineWidth = 1.4;
       ctx.stroke();
       ctx.fillStyle = disabled ? 'rgba(255, 244, 214, 0.5)' : '#130a04';
-      ctx.font = '900 ' + (compact ? 12 : 13) + 'px CrystalUI, Arial';
+      ctx.font = '800 ' + (compact ? 12 : 13) + 'px CrystalUI, Arial';
       ctx.textAlign = 'center';
       if (pending) {
         ctx.fillText(this.t('shop.pending'), buttonX + buttonW / 2, buttonY + buttonH / 2 + 1);
@@ -249,7 +249,7 @@
         const iconSize = compact ? 21 : 23;
         const gap = compact ? 5 : 6;
         ctx.save();
-        ctx.font = this.fitFont(ctx, value, '900', compact ? 16 : 18, 12, w - iconSize - gap - 14);
+        ctx.font = this.fitFont(ctx, value, '800', compact ? 16 : 18, 12, w - iconSize - gap - 14);
         ctx.textBaseline = 'middle';
         const textW = ctx.measureText(value).width;
         const totalW = textW + gap + iconSize;
@@ -262,7 +262,7 @@
         return;
       }
       const price = pack.priceText || this.t('shop.buy', { price: pack.priceYan });
-      ctx.font = this.fitFont(ctx, price, '900', compact ? 15 : 17, 11, w - 12);
+      ctx.font = this.fitFont(ctx, price, '800', compact ? 15 : 17, 11, w - 12);
       ctx.fillText(price, x + w / 2, y + h / 2 + 1, w - 12);
     };
 

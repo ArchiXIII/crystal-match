@@ -48,20 +48,20 @@
         ctx.fillStyle = '#ffe590';
         ctx.shadowColor = 'rgba(246, 189, 76, 0.72)';
         ctx.shadowBlur = this.shadow(14);
-        ctx.font = '900 ' + (compact ? 15 : 17) + 'px CrystalUI, Arial';
+        ctx.font = '800 ' + (compact ? 15 : 17) + 'px CrystalUI, Arial';
         ctx.fillText(this.t('levels.result', { level: levelNumber }), x + w / 2, y + 26);
         ctx.shadowBlur = 0;
       } else {
         ctx.fillStyle = '#ffe590';
         ctx.shadowColor = 'rgba(246, 189, 76, 0.72)';
         ctx.shadowBlur = this.shadow(14);
-        ctx.font = '900 ' + (compact ? 13 : 15) + 'px CrystalUI, Arial';
+        ctx.font = '800 ' + (compact ? 13 : 15) + 'px CrystalUI, Arial';
         ctx.fillText(this.t('menu.developer'), x + w / 2, y + 26);
         ctx.shadowBlur = 0;
       }
 
       ctx.fillStyle = '#fff4d6';
-      ctx.font = '900 ' + (compact ? 22 : 26) + 'px CrystalUI, Arial';
+      ctx.font = '800 ' + (compact ? 22 : 26) + 'px CrystalUI, Arial';
       const title = this.game.gameMode === 'level'
         ? this.t(this.game.levelWon ? 'gameOver.levelWin' : 'gameOver.levelLose')
         : this.t('gameOver.title');
@@ -72,7 +72,7 @@
         contentY = y + (compact ? 88 : 102);
       } else {
         ctx.fillStyle = '#ffd77a';
-        ctx.font = '900 ' + (compact ? 22 : 26) + 'px CrystalUI, Arial';
+        ctx.font = '800 ' + (compact ? 22 : 26) + 'px CrystalUI, Arial';
         ctx.fillText(this.t('gameOver.score', { score: String(this.game.score).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') }), x + w / 2, y + (compact ? 88 : 98));
         contentY = y + (compact ? 122 : 136);
       }
@@ -94,14 +94,14 @@
         ctx.lineWidth = 1.4;
         ctx.stroke();
         ctx.fillStyle = '#ffe590';
-        ctx.font = '900 ' + (compact ? 12 : 14) + 'px CrystalUI, Arial';
+        ctx.font = '800 ' + (compact ? 12 : 14) + 'px CrystalUI, Arial';
         ctx.fillText(this.t('gameOver.newRank', { rank: this.game.roundNewRank.title }), x + w / 2, contentY + rankH / 2 + 1);
         contentY += rankH + (compact ? 12 : 14);
       }
 
       if (this.game.gameMode === 'level') {
         ctx.fillStyle = 'rgba(255, 244, 214, 0.78)';
-        ctx.font = '900 ' + (compact ? 14 : 16) + 'px CrystalUI, Arial';
+        ctx.font = '800 ' + (compact ? 14 : 16) + 'px CrystalUI, Arial';
         const levelNumber = this.game.currentLevel ? this.game.currentLevel.n : 1;
         if (this.game.levelWon) {
           const earnedStars = Math.max(0, Math.min(3, this.game.lastLevelStarsEarned || (this.game.levelStarsFor ? this.game.levelStarsFor(levelNumber) : 0)));
@@ -135,14 +135,14 @@
               ctx.fillStyle = '#ffe590';
               ctx.shadowColor = 'rgba(246, 189, 76, 0.48)';
               ctx.shadowBlur = this.shadow(8);
-              ctx.font = '900 ' + (compact ? 15 : 18) + 'px CrystalUI, Arial';
+              ctx.font = '800 ' + (compact ? 15 : 18) + 'px CrystalUI, Arial';
               ctx.fillText(label.slice(0, letters), x + w / 2, starsY + starsR + trophyTextExtra);
               ctx.shadowBlur = 0;
             }
           }
           const movesY = starsY + starsR + (trophyTextExtra > 0 ? trophyTextExtra + (compact ? 17 : 22) : (compact ? 31 : 37));
           ctx.fillStyle = '#ffd77a';
-          ctx.font = '900 ' + (compact ? 15 : 17) + 'px CrystalUI, Arial';
+          ctx.font = '800 ' + (compact ? 15 : 17) + 'px CrystalUI, Arial';
           ctx.fillText(this.t('levels.movesLeft', { moves: Math.max(0, this.game.levelMovesLeft || 0) }), x + w / 2, movesY);
           if (showLeaderboard) {
             const levelBoardY = movesY + (compact ? 22 : 27);
@@ -151,11 +151,11 @@
             const rowH = compact ? 25 : 28;
             if (this.game.gameOverLeaderboardLoading) {
               ctx.fillStyle = 'rgba(255, 244, 214, 0.78)';
-              ctx.font = '800 12px CrystalUI, Arial';
+              ctx.font = '700 12px CrystalUI, Arial';
               ctx.fillText(this.t('gameOver.leaderboardLoading'), x + w / 2, levelBoardY + rowH);
             } else if (this.game.gameOverLeaderboardError) {
               ctx.fillStyle = 'rgba(255, 244, 214, 0.72)';
-              ctx.font = '800 12px CrystalUI, Arial';
+              ctx.font = '700 12px CrystalUI, Arial';
               this.wrapText(ctx, this.game.gameOverLeaderboardError, x + 30, levelBoardY + rowH, w - 60, 17);
             } else {
               const rows = this.gameOverLeaderboardRows(this.game.gameOverLeaderboardEntries || [], true);
@@ -166,13 +166,13 @@
           }
         } else {
           ctx.fillStyle = '#ffd77a';
-          ctx.font = '900 ' + (compact ? 17 : 20) + 'px CrystalUI, Arial';
+          ctx.font = '800 ' + (compact ? 17 : 20) + 'px CrystalUI, Arial';
           ctx.fillText(this.t('gameOver.movesEnded'), x + w / 2, contentY + 36);
         }
         contentY += compact ? 112 : 136;
       } else if (showLeaderboard) {
         ctx.fillStyle = '#f6bd4c';
-        ctx.font = '900 ' + (compact ? 14 : 16) + 'px CrystalUI, Arial';
+        ctx.font = '800 ' + (compact ? 14 : 16) + 'px CrystalUI, Arial';
         ctx.fillText(this.t('gameOver.leaderboard'), x + w / 2, contentY);
         contentY += compact ? 14 : 17;
 
@@ -181,19 +181,19 @@
         const rowH = compact ? 25 : 28;
         if (this.game.gameOverLeaderboardLoading) {
           ctx.fillStyle = 'rgba(255, 244, 214, 0.78)';
-          ctx.font = '800 13px CrystalUI, Arial';
+          ctx.font = '700 13px CrystalUI, Arial';
           ctx.fillText(this.t('gameOver.leaderboardLoading'), x + w / 2, contentY + rowH * 2);
           contentY += rowH * 5.5;
         } else if (this.game.gameOverLeaderboardError) {
           ctx.fillStyle = 'rgba(255, 244, 214, 0.72)';
-          ctx.font = '800 12px CrystalUI, Arial';
+          ctx.font = '700 12px CrystalUI, Arial';
           this.wrapText(ctx, this.game.gameOverLeaderboardError, x + 30, contentY + rowH, w - 60, 17);
           contentY += rowH * 4.5;
         } else {
           const rows = this.gameOverLeaderboardRows(this.game.gameOverLeaderboardEntries || []);
           if (!rows.length) {
             ctx.fillStyle = 'rgba(255, 244, 214, 0.72)';
-            ctx.font = '800 12px CrystalUI, Arial';
+            ctx.font = '700 12px CrystalUI, Arial';
             ctx.fillText(this.t('gameOver.leaderboardPending'), x + w / 2, contentY + rowH * 1.5);
             contentY += rowH * 4.5;
           } else {
@@ -201,7 +201,7 @@
               const rowY = contentY + index * rowH;
               if (entry.divider) {
                 ctx.fillStyle = 'rgba(255, 229, 144, 0.58)';
-                ctx.font = '900 16px CrystalUI, Arial';
+                ctx.font = '800 16px CrystalUI, Arial';
                 ctx.fillText('...', x + w / 2, rowY + rowH / 2);
                 return;
               }
@@ -264,7 +264,7 @@
           ctx.lineWidth = 1.4;
           ctx.stroke();
           ctx.fillStyle = '#fff4d6';
-          ctx.font = '900 14px CrystalUI, Arial';
+          ctx.font = '800 14px CrystalUI, Arial';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(this.t('menu.ourGames'), buttonX + buttonW / 2, secondaryY + secondaryH / 2 + 1);
@@ -290,7 +290,7 @@
       ctx.lineWidth = 2;
       ctx.stroke();
       ctx.fillStyle = disabled ? 'rgba(20, 11, 4, 0.72)' : '#140b04';
-      ctx.font = '900 ' + (compact ? 13 : 15) + 'px CrystalUI, Arial';
+      ctx.font = '800 ' + (compact ? 13 : 15) + 'px CrystalUI, Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(label, x + w / 2, y + h / 2 + 1, w - 18);
@@ -333,12 +333,12 @@
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       ctx.fillStyle = isPlayer ? '#ffe590' : '#fff4d6';
-      ctx.font = '900 12px CrystalUI, Arial';
-      ctx.fillText(String(entry.rank), x + 10, y + h / 2 + 1);
       ctx.font = '800 12px CrystalUI, Arial';
+      ctx.fillText(String(entry.rank), x + 10, y + h / 2 + 1);
+      ctx.font = '700 12px CrystalUI, Arial';
       ctx.fillText(entry.name || this.t('leaderboard.player'), x + 54, y + h / 2 + 1, w - 150);
       ctx.textAlign = 'right';
-      ctx.font = '900 12px CrystalUI, Arial';
+      ctx.font = '800 12px CrystalUI, Arial';
       const valueText = String(entry.score || 0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
       if (this.game.gameOverLeaderboardType === 'stars') {
         const star = this.uiIconSprites && this.uiIconSprites.levelStar;

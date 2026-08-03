@@ -16,7 +16,7 @@
       ctx.scale(scale, scale);
       ctx.textAlign = align || 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = '900 ' + fontSize + 'px CrystalUI, Arial';
+      ctx.font = '800 ' + fontSize + 'px CrystalUI, Arial';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = 'rgba(20, 10, 4, 0.86)';
       ctx.lineWidth = Math.max(2, fontSize * 0.1);
@@ -38,7 +38,7 @@
       const avatarY = y + l.hudHeight * 0.5;
 
       ctx.fillStyle = '#fff7df';
-      ctx.font = '800 ' + (compact ? (tight ? 17 : 15) : 18) + 'px CrystalUI, Arial';
+      ctx.font = '700 ' + (compact ? (tight ? 17 : 15) : 18) + 'px CrystalUI, Arial';
       ctx.textBaseline = 'middle';
       const profileTextX = l.sidePad + (tight ? 14 : 18);
       const playerName = this.game.playerName || this.t('leaderboard.player');
@@ -50,7 +50,7 @@
       };
       ctx.fillText(playerName, profileTextX, avatarY - (compact ? (tight ? 11 : 12) : 13), compact ? (tight ? 112 : 108) : 154);
       ctx.fillStyle = '#f6bd4c';
-      ctx.font = '900 ' + (compact ? (tight ? 12 : 11) : 14) + 'px CrystalUI, Arial';
+      ctx.font = '800 ' + (compact ? (tight ? 12 : 11) : 14) + 'px CrystalUI, Arial';
       const rankInfo = this.game.rankInfo ? this.game.rankInfo() : { title: this.t('player.rank'), progress: 0 };
       const rankProgressKey = String(rankInfo.level || 0);
       if (this.rankProgressKey !== rankProgressKey) {
@@ -143,26 +143,26 @@
           ctx.textAlign = 'left';
         } else if (stackedHud) {
           ctx.fillStyle = '#f6bd4c';
-          ctx.font = '900 ' + (tight ? 14 : 15) + 'px CrystalUI, Arial';
+          ctx.font = '800 ' + (tight ? 14 : 15) + 'px CrystalUI, Arial';
           ctx.textAlign = 'center';
           const valueY = y + l.hudHeight - (tight ? 7 : 11);
           if (levelMode) {
             const labelText = centerLabel + ' ';
             const valueText = String(centerValue);
             const labelW = ctx.measureText(labelText).width;
-            ctx.font = '900 ' + (tight ? 15 : 16) + 'px CrystalUI, Arial';
+            ctx.font = '800 ' + (tight ? 15 : 16) + 'px CrystalUI, Arial';
             const valueW = ctx.measureText(valueText).width;
             const groupX = stackedScoreCenterX - (labelW + valueW) / 2;
-            ctx.font = '900 ' + (tight ? 14 : 15) + 'px CrystalUI, Arial';
+            ctx.font = '800 ' + (tight ? 14 : 15) + 'px CrystalUI, Arial';
             ctx.fillText(labelText, groupX + labelW / 2, valueY);
             this.drawMovesValue(ctx, valueText, groupX + labelW + valueW / 2, valueY, tight ? 15 : 16, 'center');
           } else {
             const scoreText = centerLabel + ' ' + centerValue;
             let scoreFontSize = tight ? 18 : 20;
-            ctx.font = '900 ' + scoreFontSize + 'px CrystalUI, Arial';
+            ctx.font = '800 ' + scoreFontSize + 'px CrystalUI, Arial';
             while (scoreFontSize > 15 && ctx.measureText(scoreText).width > this.width - l.sidePad * 2 - 24) {
               scoreFontSize -= 1;
-              ctx.font = '900 ' + scoreFontSize + 'px CrystalUI, Arial';
+              ctx.font = '800 ' + scoreFontSize + 'px CrystalUI, Arial';
             }
             ctx.fillText(scoreText, stackedScoreCenterX, valueY);
           }
@@ -172,7 +172,7 @@
           const scoreCenterX = Math.round(Math.max(normalProfileRight + scoreTextW / 2, Math.min(this.width / 2, normalRightClusterLeft - scoreTextW / 2)));
           ctx.fillStyle = '#f6bd4c';
           const desktopLevelHud = levelMode && !stackedHud;
-          ctx.font = '800 ' + (desktopLevelHud ? 15 : 10) + 'px CrystalUI, Arial';
+          ctx.font = '700 ' + (desktopLevelHud ? 15 : 10) + 'px CrystalUI, Arial';
           ctx.textAlign = 'center';
           const scoreBaseY = y + l.hudHeight * 0.5;
           ctx.fillText(centerLabel, scoreCenterX, scoreBaseY - (desktopLevelHud ? 13 : 9));
@@ -180,7 +180,7 @@
             this.drawMovesValue(ctx, centerValue, scoreCenterX, scoreBaseY + (desktopLevelHud ? 13 : 10), desktopLevelHud ? 26 : 17, 'center');
           } else {
             ctx.fillStyle = '#fff7df';
-            ctx.font = '900 17px CrystalUI, Arial';
+            ctx.font = '800 17px CrystalUI, Arial';
             ctx.fillText(centerValue, scoreCenterX, scoreBaseY + 10);
           }
         }

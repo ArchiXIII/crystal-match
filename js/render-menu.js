@@ -35,7 +35,7 @@
       const developerGap = mobileMenu ? 20 : 28;
       const developerY = Math.max(overlayY + 18, titleBox.top - developerGap);
       ctx.fillStyle = '#ffe590';
-      ctx.font = '900 16px CrystalUI, Arial';
+      ctx.font = '800 16px CrystalUI, Arial';
       ctx.fillText(this.t('menu.developer'), cx, developerY);
       ctx.shadowBlur = this.shadow(16);
       ctx.strokeStyle = 'rgba(246, 189, 76, 0.55)';
@@ -55,14 +55,14 @@
 
       ctx.shadowBlur = 0;
       ctx.fillStyle = '#140b04';
-      ctx.font = '900 ' + (menuTight ? 21 : 24) + 'px CrystalUI, Arial';
+      ctx.font = '800 ' + (menuTight ? 21 : 24) + 'px CrystalUI, Arial';
       ctx.fillText(this.t('menu.play'), cx, buttonY + buttonH / 2 + 1);
 
       const recordY = buttonY + buttonH + (menuTight ? 10 : 12);
       this.recordButtonRect = { x: buttonX, y: recordY, w: buttonW, h: buttonH };
       this.drawMenuButton(ctx, buttonX, recordY, buttonW, buttonH, 'secondary');
       ctx.fillStyle = '#fff4d6';
-      ctx.font = '900 ' + (menuTight ? 19 : 22) + 'px CrystalUI, Arial';
+      ctx.font = '800 ' + (menuTight ? 19 : 22) + 'px CrystalUI, Arial';
       ctx.fillText(this.t('menu.record'), cx, recordY + buttonH / 2 + 1);
 
       const dailyH = buttonH;
@@ -78,7 +78,7 @@
 
         ctx.shadowBlur = 0;
         ctx.fillStyle = '#fff4d6';
-        ctx.font = '900 ' + (menuTight ? 15 : 16) + 'px CrystalUI, Arial';
+        ctx.font = '800 ' + (menuTight ? 15 : 16) + 'px CrystalUI, Arial';
         ctx.fillText(this.t('menu.ourGames'), cx, secondaryY + secondaryH / 2 + 1);
       }
       if (this.game.levelSelectOpen) this.drawLevelSelect(ctx);
@@ -147,14 +147,14 @@
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = active ? '#140b04' : '#fff4d6';
-      ctx.font = '900 15px CrystalUI, Arial';
+      ctx.font = '800 15px CrystalUI, Arial';
       ctx.fillText(title, textX, y + h * 0.35, w - 36);
-      ctx.font = '800 12px CrystalUI, Arial';
+      ctx.font = '700 12px CrystalUI, Arial';
       ctx.fillStyle = active ? 'rgba(20, 11, 4, 0.74)' : 'rgba(255, 244, 214, 0.68)';
       ctx.fillText(subText, textX, y + h * 0.68, textMaxW);
 
       ctx.fillStyle = active ? '#140b04' : '#ffe590';
-      ctx.font = '900 16px CrystalUI, Arial';
+      ctx.font = '800 16px CrystalUI, Arial';
       ctx.textAlign = 'right';
       ctx.fillText(rewardText, rewardTextX, y + h * 0.68 + 1);
       this.drawCoin(ctx, rewardCoinX, y + h * 0.68, rewardCoinR);
@@ -171,12 +171,12 @@
       ].filter(Boolean);
 
       while (fontSize > 24 && lines.some((item) => {
-        ctx.font = '900 ' + fontSize + 'px CrystalUI, Arial';
+        ctx.font = '800 ' + fontSize + 'px CrystalUI, Arial';
         return ctx.measureText(item).width > maxWidth;
       })) {
         fontSize -= 1;
       }
-      ctx.font = '900 ' + fontSize + 'px CrystalUI, Arial';
+      ctx.font = '800 ' + fontSize + 'px CrystalUI, Arial';
       const lineHeight = fontSize * 1.02;
       const startY = y - (lines.length - 1) * lineHeight * 0.5;
       lines.slice(0, 2).forEach((item, index) => {
