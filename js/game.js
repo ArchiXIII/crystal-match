@@ -24,7 +24,9 @@
         gameOverLeaderboard: true,
         endlessGameOverLeaderboard: true,
         paidCoinPacks: true,
-        developerGames: true
+        developerGames: true,
+        levelExitButton: false,
+        levelExitToMainMenu: false
       }, options.platformFeatures || {});
       this.playerName = String(options.playerName || this.t('leaderboard.player') || '').trim() || this.t('leaderboard.player');
       this.score = 0;
@@ -811,7 +813,7 @@
       this.animations = [];
       this.pendingRevert = null;
       this.state = STATE_IDLE;
-      if (mode === 'level' && this.openLevelSelect) {
+      if (mode === 'level' && !this.platformFeatures.levelExitToMainMenu && this.openLevelSelect) {
         this.needsNewRound = true;
         this.currentLevel = null;
         this.levelMovesLeft = 0;

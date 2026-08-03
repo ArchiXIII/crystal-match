@@ -14,7 +14,8 @@
       sideGoalMinWidth: 880,
       sideGoalMinHeight: 620,
       desktopSidePadMax: 24,
-      reserveSideGoalColumn: true
+      reserveSideGoalColumn: true,
+      mobileLevelExitRow: true
     },
     features: {
       nativeLeaderboard: false,
@@ -24,7 +25,9 @@
       gameOverLeaderboard: true,
       endlessGameOverLeaderboard: true,
       paidCoinPacks: true,
-      developerGames: false
+      developerGames: false,
+      levelExitButton: true,
+      levelExitToMainMenu: true
     },
     leaderboards: {
       endless: '',

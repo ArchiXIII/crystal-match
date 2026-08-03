@@ -169,10 +169,11 @@
     };
 
   Renderer.prototype.shouldShowExitEndlessRoundButton = function () {
-      return this.game.gameMode === 'endless' &&
+      const levelExit = this.game.gameMode === 'level' && this.game.platformFeatures.levelExitButton === true;
+      return (this.game.gameMode === 'endless' || levelExit) &&
         !this.game.menuOpen &&
         !this.game.gameOver &&
-        !this.shouldShowEndRoundButton() &&
+        (levelExit || !this.shouldShowEndRoundButton()) &&
         !!this.game.currentGoal;
     };
 
@@ -195,6 +196,13 @@
         y = l.goalY + l.goalHeight + gap;
         const maxY = l.boardY + l.boardHeight - h;
         if (y > maxY) y = maxY;
+      } else if (l.mobileLevelExitRow && this.game.gameMode === 'level') {
+        const panelW = l.boardWidth + 8;
+        const gap = Math.max(7, Math.min(12, panelW * 0.032));
+        h = Math.min(86, l.boosterHeight);
+        w = (panelW - gap * 2) / 3;
+        x = l.boardX + l.boardWidth / 2 - w / 2;
+        y = l.exitRoundY;
       } else {
         h = l.goalHeight;
         w = Math.max(tight ? 82 : 104, Math.min(tight ? 102 : 128, l.goalWidth * (tight ? 0.27 : 0.31)));
@@ -265,7 +273,7 @@
             y = Math.max(l.boardY + l.boardHeight + 6, hammer.y - h - 8);
           }
         }
-      } else if (l.desktopGoal) {
+      } else if (l.desktopGoal && !(this.game.gameMode === 'level' && this.game.platformFeatures.levelExitButton === true)) {
         x = l.goalX;
         w = l.goalWidth;
         y = l.goalY + l.goalHeight + Math.max(8, Math.min(12, l.boardHeight * 0.018));

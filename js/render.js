@@ -347,10 +347,13 @@
         const reservedSideWidth = sideGoal && reserveSideGoalColumn ? sideGoalWidth + goalGap : 0;
         const availableBoardWidth = Math.max(1, contentWidth - reservedSideWidth);
         const verticalGap = tightPortrait ? Math.max(7, Math.min(10, this.height * 0.01)) : 12;
+        const mobileLevelExitRow = platformLayout.mobileLevelExitRow === true &&
+          this.game.platformFeatures.levelExitButton === true &&
+          this.game.gameMode === 'level' &&
+          !sideGoal;
         const boardYBase = safeTop + hudHeight + (sideGoal ? verticalGap : goalHeight + verticalGap * 2);
-        const boosterTop = tightPortrait
-          ? this.height - safeBottom - boosterHeight
-          : this.height - safeBottom - boosterHeight;
+        const boosterTop = this.height - safeBottom - boosterHeight -
+          (mobileLevelExitRow ? boosterHeight + verticalGap : 0);
         const availableBoardHeight = Math.max(1, boosterTop - boardYBase - verticalGap);
         const cell = Math.max(1, Math.floor(Math.min(availableBoardWidth / this.game.columns, availableBoardHeight / this.game.rows)));
         const boardWidth = cell * this.game.columns;
@@ -361,7 +364,7 @@
           : Math.round((this.width - boardWidth) / 2);
         const slack = Math.max(0, availableBoardHeight - boardHeight);
         const boardY = Math.round(boardYBase + slack * 0.5);
-        return { goalHeight, cell, boardWidth, boardHeight, boardX, boardY, verticalGap };
+        return { goalHeight, cell, boardWidth, boardHeight, boardX, boardY, verticalGap, mobileLevelExitRow };
       };
 
       let board = makeBoard(canTrySideGoal);
@@ -388,9 +391,12 @@
         goalX = rightGoalX;
       }
       const goalY = goalSide ? board.boardY : Math.round(safeTop + hudHeight + board.verticalGap);
-      const boosterY = tightPortrait
-        ? Math.max(board.boardY + board.boardHeight + board.verticalGap, this.height - safeBottom - boosterHeight)
-        : board.boardY + board.boardHeight + board.verticalGap;
+      const mobileLevelExitRow = !!board.mobileLevelExitRow;
+      const boosterY = mobileLevelExitRow
+        ? board.boardY + board.boardHeight + board.verticalGap
+        : (tightPortrait
+          ? Math.max(board.boardY + board.boardHeight + board.verticalGap, this.height - safeBottom - boosterHeight)
+          : board.boardY + board.boardHeight + board.verticalGap);
       return {
         safeTop,
         safeBottom,
@@ -409,6 +415,8 @@
         boardWidth: board.boardWidth,
         boardHeight: board.boardHeight,
         boosterY,
+        mobileLevelExitRow,
+        exitRoundY: mobileLevelExitRow ? this.height - safeBottom - boosterHeight : 0,
         tightPortrait
       };
     }
