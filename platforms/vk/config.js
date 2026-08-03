@@ -13,7 +13,8 @@
     layout: {
       sideGoalMinWidth: 880,
       sideGoalMinHeight: 620,
-      desktopSidePadMax: 24
+      desktopSidePadMax: 24,
+      reserveSideGoalColumn: true
     },
     features: {
       nativeLeaderboard: false,

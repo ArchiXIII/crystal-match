@@ -339,11 +339,13 @@
       const sideGoalMinHeight = Number.isFinite(platformLayout.sideGoalMinHeight)
         ? platformLayout.sideGoalMinHeight
         : 0;
+      const reserveSideGoalColumn = platformLayout.reserveSideGoalColumn === true;
       const canTrySideGoal = this.width >= sideGoalMinWidth && this.height >= sideGoalMinHeight;
 
       const makeBoard = (sideGoal) => {
         const goalHeight = sideGoal ? sideGoalHeight : topGoalHeight;
-        const availableBoardWidth = contentWidth;
+        const reservedSideWidth = sideGoal && reserveSideGoalColumn ? sideGoalWidth + goalGap : 0;
+        const availableBoardWidth = Math.max(1, contentWidth - reservedSideWidth);
         const verticalGap = tightPortrait ? Math.max(7, Math.min(10, this.height * 0.01)) : 12;
         const boardYBase = safeTop + hudHeight + (sideGoal ? verticalGap : goalHeight + verticalGap * 2);
         const boosterTop = tightPortrait
@@ -353,7 +355,10 @@
         const cell = Math.max(1, Math.floor(Math.min(availableBoardWidth / this.game.columns, availableBoardHeight / this.game.rows)));
         const boardWidth = cell * this.game.columns;
         const boardHeight = cell * this.game.rows;
-        const boardX = Math.round((this.width - boardWidth) / 2);
+        const groupWidth = boardWidth + reservedSideWidth;
+        const boardX = reserveSideGoalColumn && sideGoal
+          ? Math.round((this.width - groupWidth) / 2 + reservedSideWidth)
+          : Math.round((this.width - boardWidth) / 2);
         const slack = Math.max(0, availableBoardHeight - boardHeight);
         const boardY = Math.round(boardYBase + slack * 0.5);
         return { goalHeight, cell, boardWidth, boardHeight, boardX, boardY, verticalGap };
