@@ -415,7 +415,7 @@
     awardRankXp(amount) {
       if (!Number.isFinite(amount) || amount <= 0) return;
       this.rankXp += Math.floor(amount);
-      this.saveRankXp(true);
+      this.saveRankXp(false);
     }
 
     addScore(amount) {

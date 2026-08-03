@@ -18,6 +18,7 @@
     fpsFastWindows: 0,
     backGuardBound: false,
     backGuardDepth: 0,
+    platformOverlayAudioPaused: false,
 
     registerAdapter(adapter) {
       const source = adapter && typeof adapter === 'object' ? adapter : {};
@@ -202,7 +203,18 @@
     },
 
     resumeAudioFromSystem() {
+      if (this.platformOverlayAudioPaused) return;
       if (this.audio && this.audio.resumeFromSystem) this.audio.resumeFromSystem();
+    },
+
+    beginPlatformOverlayAudioPause() {
+      this.platformOverlayAudioPaused = true;
+      this.pauseAudioForSystem();
+    },
+
+    endPlatformOverlayAudioPause() {
+      this.platformOverlayAudioPaused = false;
+      this.resumeAudioFromSystem();
     },
 
     detectBrowserLanguage() {

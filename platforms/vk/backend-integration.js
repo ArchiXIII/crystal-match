@@ -380,7 +380,7 @@
       const product = this.getPurchaseProduct(pack.id);
       if (!product) return false;
       this.purchaseInFlight = true;
-      this.pauseAudioForSystem();
+      this.beginPlatformOverlayAudioPause();
       try {
         await this.vkBridge.send('VKWebAppShowOrderBox', {
           type: 'item',
@@ -396,6 +396,7 @@
         return true;
       } finally {
         this.purchaseInFlight = false;
+        this.endPlatformOverlayAudioPause();
         this.scheduleRuntimeRestore();
       }
     },

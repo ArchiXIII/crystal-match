@@ -23,11 +23,12 @@
     pendingAdBonusSave: null,
     pendingLevelProgressSave: null,
     processedPurchaseTokens: [],
-    coinSaveTimer: null,
-    rankXpSaveTimer: null,
-    dailyBonusSaveTimer: null,
-    adBonusSaveTimer: null,
-    levelProgressSaveTimer: null,
+    cloudSaveTimer: null,
+    cloudSaveDueAt: 0,
+    cloudSaveInFlight: null,
+    cloudSaveQueued: false,
+    lastCloudSaveAt: 0,
+    cloudSaveMinInterval: 1500,
     rankXpSaveDelay: 30000,
 
     notifyGameReady() {
@@ -241,19 +242,86 @@
       return payload;
     },
 
+    hasPendingCloudProgress() {
+      return this.pendingCoinSave !== null ||
+        this.pendingRankXpSave !== null ||
+        this.pendingDailyBonusSave !== null ||
+        this.pendingAdBonusSave !== null ||
+        this.pendingLevelProgressSave !== null;
+    },
+
+    scheduleCloudProgressSave(delay) {
+      if (!this.isServerBackedPlayer()) return;
+      const dueAt = Date.now() + Math.max(0, Math.floor(Number(delay) || 0));
+      if (this.cloudSaveTimer && this.cloudSaveDueAt <= dueAt) return;
+      window.clearTimeout(this.cloudSaveTimer);
+      this.cloudSaveDueAt = dueAt;
+      this.cloudSaveTimer = window.setTimeout(() => {
+        this.cloudSaveTimer = null;
+        this.cloudSaveDueAt = 0;
+        this.flushCloudProgress();
+      }, Math.max(0, dueAt - Date.now()));
+    },
+
+    flushCloudProgress() {
+      if (!this.isServerBackedPlayer()) return Promise.resolve();
+      window.clearTimeout(this.cloudSaveTimer);
+      this.cloudSaveTimer = null;
+      this.cloudSaveDueAt = 0;
+      if (this.cloudSaveInFlight) {
+        if (this.hasPendingCloudProgress()) this.cloudSaveQueued = true;
+        return this.cloudSaveInFlight;
+      }
+      if (!this.hasPendingCloudProgress()) return Promise.resolve();
+      const wait = Math.max(0, this.cloudSaveMinInterval - (Date.now() - this.lastCloudSaveAt));
+      if (wait > 0) {
+        this.scheduleCloudProgressSave(wait);
+        return Promise.resolve();
+      }
+
+      const savedCoins = this.pendingCoinSave;
+      const savedXp = this.pendingRankXpSave;
+      const savedDailyBonus = this.pendingDailyBonusSave;
+      const savedAdBonus = this.pendingAdBonusSave;
+      const savedLevelProgress = this.pendingLevelProgressSave;
+      this.pendingCoinSave = null;
+      this.pendingRankXpSave = null;
+      this.pendingDailyBonusSave = null;
+      this.pendingAdBonusSave = null;
+      this.pendingLevelProgressSave = null;
+      if (savedXp !== null) this.submitXpLeaderboard(savedXp);
+      const payload = this.buildCloudProgressPayload();
+      this.lastCloudSaveAt = Date.now();
+      this.cloudSaveInFlight = this.player.setData(payload, true)
+        .then(() => {
+          if (savedCoins !== null && this.pendingCoinSave === null && this.game && Math.floor(this.game.coins || 0) === savedCoins) {
+            this.applySyncedCoins(savedCoins);
+          }
+          if (savedXp !== null && this.pendingRankXpSave === null) this.lastSyncedRankXp = savedXp;
+        })
+        .catch(() => {
+          if (savedCoins !== null && this.pendingCoinSave === null) this.pendingCoinSave = savedCoins;
+          if (savedXp !== null && this.pendingRankXpSave === null) this.pendingRankXpSave = savedXp;
+          if (savedDailyBonus !== null && this.pendingDailyBonusSave === null) this.pendingDailyBonusSave = savedDailyBonus;
+          if (savedAdBonus !== null && this.pendingAdBonusSave === null) this.pendingAdBonusSave = savedAdBonus;
+          if (savedLevelProgress !== null && this.pendingLevelProgressSave === null) this.pendingLevelProgressSave = savedLevelProgress;
+        })
+        .finally(() => {
+          this.cloudSaveInFlight = null;
+          if (this.cloudSaveQueued || this.hasPendingCloudProgress()) {
+            this.cloudSaveQueued = false;
+            this.scheduleCloudProgressSave(this.cloudSaveMinInterval);
+          }
+        });
+      return this.cloudSaveInFlight;
+    },
+
     saveCloudCoins(coins, meta) {
       if (!this.isServerBackedPlayer()) return;
       const value = Math.max(0, Math.floor(coins));
       const info = meta && typeof meta === 'object' ? meta : {};
       this.pendingCoinSave = value;
-      window.clearTimeout(this.coinSaveTimer);
-      if (info.immediate || info.forceValue) {
-        this.flushCloudCoins();
-        return;
-      }
-      this.coinSaveTimer = window.setTimeout(() => {
-        this.flushCloudCoins();
-      }, 450);
+      this.scheduleCloudProgressSave(info.immediate || info.forceValue ? 0 : 750);
     },
 
     async readCloudCoinsAndTokens() {
@@ -271,19 +339,7 @@
     },
 
     async flushCloudCoins() {
-      if (!this.isServerBackedPlayer() || this.pendingCoinSave === null) return Promise.resolve();
-      window.clearTimeout(this.coinSaveTimer);
-      const nextCoins = Math.max(0, Math.floor(this.pendingCoinSave));
-      this.pendingCoinSave = null;
-      this.pendingCoinDelta = 0;
-      this.pendingCoinForceValue = false;
-      const payload = this.buildCloudProgressPayload({ coins: nextCoins });
-      try {
-        await this.player.setData(payload, true);
-        this.applySyncedCoins(nextCoins);
-      } catch (error) {
-        this.pendingCoinSave = nextCoins;
-      }
+      return this.flushCloudProgress();
     },
 
     applySyncedCoins(coins, options) {
@@ -344,29 +400,11 @@
       if (!this.isServerBackedPlayer()) return;
       const value = Math.max(0, Math.floor(rankXp));
       this.pendingRankXpSave = value;
-      window.clearTimeout(this.rankXpSaveTimer);
-      if (force) {
-        this.flushCloudRankXp();
-        return;
-      }
-      this.rankXpSaveTimer = window.setTimeout(() => {
-        this.flushCloudRankXp();
-      }, this.rankXpSaveDelay);
+      this.scheduleCloudProgressSave(force ? 0 : this.rankXpSaveDelay);
     },
 
     flushCloudRankXp() {
-      if (!this.isServerBackedPlayer() || this.pendingRankXpSave === null) return Promise.resolve();
-      window.clearTimeout(this.rankXpSaveTimer);
-      const savedXp = this.pendingRankXpSave;
-      const payload = this.buildCloudProgressPayload({ rankXp: savedXp });
-      this.pendingRankXpSave = null;
-      this.submitXpLeaderboard(savedXp);
-      if (savedXp === this.lastSyncedRankXp) return Promise.resolve();
-      return this.player.setData(payload, true).catch(() => {
-        this.pendingRankXpSave = savedXp;
-      }).then(() => {
-        if (this.pendingRankXpSave === null) this.lastSyncedRankXp = savedXp;
-      });
+      return this.flushCloudProgress();
     },
 
     saveCloudDailyBonus(dailyBonus, meta) {
@@ -378,25 +416,11 @@
         adClaimedDate: String(source.adClaimedDate || '')
       };
       const info = meta && typeof meta === 'object' ? meta : {};
-      window.clearTimeout(this.dailyBonusSaveTimer);
-      if (info.immediate) {
-        this.flushCloudDailyBonus();
-        return;
-      }
-      this.dailyBonusSaveTimer = window.setTimeout(() => {
-        this.flushCloudDailyBonus();
-      }, 350);
+      this.scheduleCloudProgressSave(info.immediate ? 0 : 750);
     },
 
     flushCloudDailyBonus() {
-      if (!this.isServerBackedPlayer() || this.pendingDailyBonusSave === null) return;
-      window.clearTimeout(this.dailyBonusSaveTimer);
-      const savedDailyBonus = this.pendingDailyBonusSave;
-      const payload = this.buildCloudProgressPayload({ dailyBonus: savedDailyBonus });
-      this.pendingDailyBonusSave = null;
-      this.player.setData(payload, true).catch(() => {
-        this.pendingDailyBonusSave = savedDailyBonus;
-      });
+      return this.flushCloudProgress();
     },
 
     saveCloudAdBonus(adBonus, meta) {
@@ -406,25 +430,11 @@
         lastClaimAt: Math.max(0, Math.floor(Number(source.lastClaimAt) || 0))
       };
       const info = meta && typeof meta === 'object' ? meta : {};
-      window.clearTimeout(this.adBonusSaveTimer);
-      if (info.immediate) {
-        this.flushCloudAdBonus();
-        return;
-      }
-      this.adBonusSaveTimer = window.setTimeout(() => {
-        this.flushCloudAdBonus();
-      }, 350);
+      this.scheduleCloudProgressSave(info.immediate ? 0 : 750);
     },
 
     flushCloudAdBonus() {
-      if (!this.isServerBackedPlayer() || this.pendingAdBonusSave === null) return;
-      window.clearTimeout(this.adBonusSaveTimer);
-      const savedAdBonus = this.pendingAdBonusSave;
-      const payload = this.buildCloudProgressPayload({ adBonus: savedAdBonus });
-      this.pendingAdBonusSave = null;
-      this.player.setData(payload, true).catch(() => {
-        this.pendingAdBonusSave = savedAdBonus;
-      });
+      return this.flushCloudProgress();
     },
 
     saveCloudLevelProgress(progress, meta) {
@@ -449,25 +459,11 @@
         chapterTrophies
       };
       const info = meta && typeof meta === 'object' ? meta : {};
-      window.clearTimeout(this.levelProgressSaveTimer);
-      if (info.immediate) {
-        this.flushCloudLevelProgress();
-        return;
-      }
-      this.levelProgressSaveTimer = window.setTimeout(() => {
-        this.flushCloudLevelProgress();
-      }, 500);
+      this.scheduleCloudProgressSave(info.immediate ? 0 : 750);
     },
 
     flushCloudLevelProgress() {
-      if (!this.isServerBackedPlayer() || this.pendingLevelProgressSave === null) return Promise.resolve();
-      window.clearTimeout(this.levelProgressSaveTimer);
-      const savedLevelProgress = this.pendingLevelProgressSave;
-      const payload = this.buildCloudProgressPayload({ levelProgress: savedLevelProgress });
-      this.pendingLevelProgressSave = null;
-      return this.player.setData(payload, true).catch(() => {
-        this.pendingLevelProgressSave = savedLevelProgress;
-      });
+      return this.flushCloudProgress();
     },
 
     async getLeaderboards() {
@@ -532,26 +528,26 @@
       if (!this.isRewardedAdAvailable()) return Promise.resolve(false);
       return new Promise((resolve) => {
         let rewarded = false;
-        this.pauseAudioForSystem();
+        this.beginPlatformOverlayAudioPause();
         try {
           this.ysdk.adv.showRewardedVideo({
             callbacks: {
-              onOpen: () => this.pauseAudioForSystem(),
+              onOpen: () => this.beginPlatformOverlayAudioPause(),
               onRewarded: () => {
                 rewarded = true;
               },
               onClose: () => {
-                this.resumeAudioFromSystem();
+                this.endPlatformOverlayAudioPause();
                 resolve(rewarded);
               },
               onError: () => {
-                this.resumeAudioFromSystem();
+                this.endPlatformOverlayAudioPause();
                 resolve(false);
               }
             }
           });
         } catch (error) {
-          this.resumeAudioFromSystem();
+          this.endPlatformOverlayAudioPause();
           resolve(false);
         }
       });
@@ -560,25 +556,25 @@
     showInterstitialAd() {
       if (!this.ysdk || !this.ysdk.adv || !this.ysdk.adv.showFullscreenAdv) return Promise.resolve(false);
       return new Promise((resolve) => {
-        this.pauseAudioForSystem();
+        this.beginPlatformOverlayAudioPause();
         try {
           this.ysdk.adv.showFullscreenAdv({
             callbacks: {
               onOpen: () => {
-                this.pauseAudioForSystem();
+                this.beginPlatformOverlayAudioPause();
               },
               onClose: (wasShown) => {
-                this.resumeAudioFromSystem();
+                this.endPlatformOverlayAudioPause();
                 resolve(!!wasShown);
               },
               onError: () => {
-                this.resumeAudioFromSystem();
+                this.endPlatformOverlayAudioPause();
                 resolve(false);
               }
             }
           });
         } catch (error) {
-          this.resumeAudioFromSystem();
+          this.endPlatformOverlayAudioPause();
           resolve(false);
         }
       });
@@ -646,7 +642,9 @@
       this.pendingCoinSave = null;
       this.pendingCoinDelta = 0;
       this.pendingCoinForceValue = false;
-      window.clearTimeout(this.coinSaveTimer);
+      window.clearTimeout(this.cloudSaveTimer);
+      this.cloudSaveTimer = null;
+      this.cloudSaveDueAt = 0;
       const tokens = token && this.processedPurchaseTokens.indexOf(token) === -1
         ? this.processedPurchaseTokens.concat(token).slice(-50)
         : this.processedPurchaseTokens.slice(-50);
@@ -659,12 +657,20 @@
         return true;
       }
       try {
+        if (this.cloudSaveInFlight) await this.cloudSaveInFlight;
+        const wait = Math.max(0, this.cloudSaveMinInterval - (Date.now() - this.lastCloudSaveAt));
+        if (wait > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, wait));
+        }
+        this.lastCloudSaveAt = Date.now();
         await this.player.setData(this.buildCloudProgressPayload({ coins, coinPurchaseTokens: tokens }), true);
         this.processedPurchaseTokens = tokens;
         this.saveLocalPurchaseTokens();
         this.applySyncedCoins(coins);
+        if (this.hasPendingCloudProgress()) this.scheduleCloudProgressSave(this.cloudSaveMinInterval);
         return true;
       } catch (error) {
+        if (this.hasPendingCloudProgress()) this.scheduleCloudProgressSave(this.cloudSaveMinInterval);
         return false;
       }
     },

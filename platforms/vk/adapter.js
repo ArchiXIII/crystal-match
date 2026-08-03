@@ -791,7 +791,7 @@
         ? this.waitForVkRewardAd(params)
         : Promise.resolve(true);
       return ready.then(() => {
-        this.pauseAudioForSystem();
+        this.beginPlatformOverlayAudioPause();
         return this.requestVkAd(format, params);
       })
         .then((result) => !!result)
@@ -801,6 +801,7 @@
         })
         .finally(() => {
           this.adInFlight = false;
+          this.endPlatformOverlayAudioPause();
           this.scheduleRuntimeRestore();
         });
     },
