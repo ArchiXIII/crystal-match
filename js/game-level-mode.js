@@ -55,6 +55,7 @@
       window.localStorage.setItem(this.levelProgressStorageKey, JSON.stringify(progress));
     } catch (error) {}
     if (this.saveLevelProgressExternal && settings.cloud !== false) this.saveLevelProgressExternal(progress, options || null);
+    if (this.reportGameProgressExternal) this.reportGameProgressExternal(progress);
   };
 
   Game.prototype.levelStarsFor = function (levelNumber) {
@@ -346,7 +347,10 @@
     }
       this.playSound(won ? 'goalComplete' : 'roundEnd');
       this.saveRankXp(true);
-      this.syncPlatformLeaderboards();
+      this.syncPlatformLeaderboards({
+        reason: 'level',
+        chapterComplete: won && this.currentLevel && this.currentLevel.n % 10 === 0
+      });
       if (won) this.loadGameOverLeaderboard('stars');
       this.finishedAt = Date.now();
       return true;
@@ -371,9 +375,9 @@
     this.submitStarsExternal(this.totalLevelStars());
   };
 
-  Game.prototype.syncPlatformLeaderboards = function () {
+  Game.prototype.syncPlatformLeaderboards = function (options) {
     if (!this.syncPlatformLeaderboardsExternal) return false;
-    this.syncPlatformLeaderboardsExternal();
+    this.syncPlatformLeaderboardsExternal(options);
     return true;
   };
 

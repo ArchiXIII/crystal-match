@@ -158,9 +158,16 @@
               ctx.font = '700 12px CrystalUI, Arial';
               this.wrapText(ctx, this.game.gameOverLeaderboardError, x + 30, levelBoardY + rowH, w - 60, 17);
             } else {
-              const rows = this.gameOverLeaderboardRows(this.game.gameOverLeaderboardEntries || [], true);
+              const rows = this.gameOverLeaderboardRows(this.game.gameOverLeaderboardEntries || []);
               rows.forEach((entry, index) => {
-                this.drawGameOverLeaderboardRow(ctx, entry, listX, levelBoardY + index * rowH, listW, rowH - 4);
+                const rowY = levelBoardY + index * rowH;
+                if (entry.divider) {
+                  ctx.fillStyle = 'rgba(255, 229, 144, 0.58)';
+                  ctx.font = '800 16px CrystalUI, Arial';
+                  ctx.fillText('...', x + w / 2, rowY + rowH / 2);
+                } else {
+                  this.drawGameOverLeaderboardRow(ctx, entry, listX, rowY, listW, rowH - 4);
+                }
               });
             }
           }
@@ -298,7 +305,9 @@
     };
 
   Renderer.prototype.gameOverLeaderboardRows = function (entries, aroundOnly) {
-      const sorted = (entries || []).slice().filter((entry) => entry && Number.isFinite(entry.rank)).sort((a, b) => a.rank - b.rank);
+      const source = (entries || []).filter((entry) => entry && typeof entry === 'object');
+      const sorted = source.filter((entry) => Number.isFinite(entry.rank)).slice().sort((a, b) => a.rank - b.rank);
+      const unrankedPlayer = source.find((entry) => entry.isPlayer && !Number.isFinite(entry.rank));
       if (aroundOnly) {
         const player = sorted.find((entry) => entry.isPlayer);
         if (player) {
@@ -310,11 +319,11 @@
       const player = sorted.find((entry) => entry.isPlayer);
       const rows = top.slice();
       if (player && !top.some((entry) => entry.rank === player.rank)) {
-        const around = sorted.filter((entry) => Math.abs(entry.rank - player.rank) <= 2 && !rows.some((row) => row.rank === entry.rank));
-        if (around.length) {
-          rows.push({ divider: true });
-          around.forEach((entry) => rows.push(entry));
-        }
+        rows.push({ divider: true });
+        rows.push(player);
+      } else if (unrankedPlayer) {
+        if (rows.length) rows.push({ divider: true });
+        rows.push(unrankedPlayer);
       }
       if (!rows.length && sorted.length) return sorted.slice(0, 7);
       return rows.slice(0, 9);
@@ -334,9 +343,10 @@
       ctx.textAlign = 'left';
       ctx.fillStyle = isPlayer ? '#ffe590' : '#fff4d6';
       ctx.font = '800 12px CrystalUI, Arial';
-      ctx.fillText(String(entry.rank), x + 10, y + h / 2 + 1);
+      const hasRank = Number.isFinite(entry.rank);
+      if (hasRank) ctx.fillText(String(entry.rank), x + 10, y + h / 2 + 1);
       ctx.font = '700 12px CrystalUI, Arial';
-      ctx.fillText(entry.name || this.t('leaderboard.player'), x + 54, y + h / 2 + 1, w - 150);
+      ctx.fillText(entry.name || this.t('leaderboard.player'), x + (hasRank ? 54 : 10), y + h / 2 + 1, w - (hasRank ? 150 : 106));
       ctx.textAlign = 'right';
       ctx.font = '800 12px CrystalUI, Arial';
       const valueText = String(entry.score || 0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');

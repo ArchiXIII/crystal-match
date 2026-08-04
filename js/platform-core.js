@@ -19,6 +19,8 @@
     backGuardBound: false,
     backGuardDepth: 0,
     platformOverlayAudioPaused: false,
+    platformForcedAudioMuted: false,
+    platformGameplayActive: false,
 
     registerAdapter(adapter) {
       const source = adapter && typeof adapter === 'object' ? adapter : {};
@@ -69,6 +71,7 @@
         saveAdBonus: this.adapterCallback('saveCloudAdBonus'),
         saveLevelProgress: this.adapterCallback('saveCloudLevelProgress'),
         saveSettings: this.adapterCallback('saveCloudSettings'),
+        reportGameProgress: this.adapterCallback('reportGameProgress'),
         submitScore: this.adapterCallback('submitLeaderboardScore'),
         submitStars: platformFeatures.starsLeaderboard === false ? null : this.adapterCallback('submitStarsLeaderboard'),
         syncPlatformLeaderboards: this.adapterCallback('syncProgressLeaderboards'),
@@ -86,10 +89,15 @@
       this.input = new CrystalMatchInput(this.canvas, this.game, this.renderer);
       this.applyPerformanceProfile(true);
       this.callAdapter('initializeCloudProgressFromGame');
-      this.callAdapter('syncProgressLeaderboards');
+      this.callAdapter('reportGameProgress', {
+        highestUnlockedLevel: this.game.highestUnlockedLevel,
+        stars: this.game.levelStars,
+        chapterTrophies: this.game.levelChapterTrophies
+      });
+      this.callAdapter('syncProgressLeaderboards', { reason: 'boot' });
       if (platformFeatures.paidCoinPacks !== false) {
         this.callAdapter('loadCoinPurchaseCatalog');
-        this.callAdapter('processPendingPurchases');
+        this.callAdapter('processPendingPurchases', { source: 'boot' });
       }
       this.bindRuntimeEvents();
       if (this.bindPlatformEvents) this.bindPlatformEvents();
@@ -203,8 +211,14 @@
     },
 
     resumeAudioFromSystem() {
-      if (this.platformOverlayAudioPaused) return;
+      if (this.platformOverlayAudioPaused || this.platformForcedAudioMuted) return;
       if (this.audio && this.audio.resumeFromSystem) this.audio.resumeFromSystem();
+    },
+
+    setPlatformForcedAudioMuted(muted) {
+      this.platformForcedAudioMuted = !!muted;
+      if (this.platformForcedAudioMuted) this.pauseAudioForSystem();
+      else this.resumeAudioFromSystem();
     },
 
     beginPlatformOverlayAudioPause() {
@@ -305,11 +319,31 @@
       }
     },
 
+    syncPlatformGameplayState() {
+      if (!this.notifyGameplayStart && !this.notifyGameplayStop) return;
+      const game = this.game;
+      const active = !!(
+        game &&
+        !game.menuOpen &&
+        !game.gameOver &&
+        !game.pendingLevelWin &&
+        !game.exitRoundConfirmOpen &&
+        !game.coinShopOpen &&
+        !game.leaderboardOpen &&
+        !game.profilePanelOpen &&
+        !game.xpLeaderboardOpen
+      );
+      if (active === this.platformGameplayActive) return;
+      this.platformGameplayActive = active;
+      this.callAdapter(active ? 'notifyGameplayStart' : 'notifyGameplayStop');
+    },
+
     loop(time) {
       const dt = Math.min(32, time - (this.lastTime || time));
       this.lastTime = time;
       this.updateAdaptiveQuality(time);
       this.game.update(dt);
+      this.syncPlatformGameplayState();
       this.renderer.render(time);
       requestAnimationFrame((nextTime) => this.loop(nextTime));
     }

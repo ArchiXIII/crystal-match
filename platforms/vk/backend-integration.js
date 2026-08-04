@@ -57,6 +57,9 @@
 
     syncProgressLeaderboards(options) {
       const source = options && typeof options === 'object' ? options : {};
+      if (source.reason === 'level' && !source.chapterComplete) {
+        return Promise.resolve(true);
+      }
       if (!source.immediate && this.game && this.game.menuOpen && !this.game.gameOver) {
         if (!this.leaderboardBootSyncTimer) {
           this.leaderboardBootSyncTimer = window.setTimeout(() => {
@@ -67,9 +70,7 @@
         return Promise.resolve(true);
       }
       if (this.isOkClient()) {
-        if (this.game && this.game.gameMode === 'endless' && this.game.gameOver) {
-          this.publishOkEndlessScore(this.game.score);
-        }
+        this.retryPendingOkEndlessScore();
       } else {
         this.retryPendingEndlessScore();
       }
@@ -101,6 +102,42 @@
           this.leaderboardSyncInFlight = null;
         });
       return this.leaderboardSyncInFlight;
+    },
+
+    starsLeaderboardStorageKey() {
+      const syncKey = this.progressLeaderboardSyncKey();
+      return syncKey ? syncKey.replace('-stars-submitted-', '-stars-cache-') : '';
+    },
+
+    loadStoredStarsLeaderboard() {
+      const key = this.starsLeaderboardStorageKey();
+      if (!key) return null;
+      try {
+        const stored = JSON.parse(window.localStorage.getItem(key) || 'null');
+        if (!stored || !Array.isArray(stored.entries)) return null;
+        return {
+          entries: stored.entries.filter((entry) => entry && typeof entry === 'object'),
+          savedAt: Math.max(0, Math.floor(Number(stored.savedAt) || 0)),
+          totalStars: Math.max(0, Math.floor(Number(stored.totalStars) || 0))
+        };
+      } catch (error) {
+        return null;
+      }
+    },
+
+    saveStoredStarsLeaderboard(entries) {
+      const key = this.starsLeaderboardStorageKey();
+      if (!key) return false;
+      try {
+        window.localStorage.setItem(key, JSON.stringify({
+          entries: Array.isArray(entries) ? entries.slice(0, 24) : [],
+          savedAt: Date.now(),
+          totalStars: this.game && this.game.totalLevelStars ? this.game.totalLevelStars() : 0
+        }));
+        return true;
+      } catch (error) {
+        return false;
+      }
     },
 
     leaderboardPayloadEntries(payload) {
@@ -170,7 +207,18 @@
     async loadStarsLeaderboard(force) {
       if (!this.backendClient) throw new Error('BACKEND_UNAVAILABLE');
       const now = Date.now();
-      if (!force && this.starsLeaderboardCache && now - this.starsLeaderboardCacheAt < 30000) {
+      if (!this.starsLeaderboardCache) {
+        const stored = this.loadStoredStarsLeaderboard();
+        if (stored) {
+          this.starsLeaderboardCache = stored.entries;
+          this.starsLeaderboardCacheAt = stored.savedAt;
+          this.starsLeaderboardCacheStars = stored.totalStars;
+        }
+      }
+      const currentStars = this.game && this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
+      if (!force && this.starsLeaderboardCache &&
+          this.starsLeaderboardCacheStars >= currentStars &&
+          now - this.starsLeaderboardCacheAt < this.starsLeaderboardCacheTtl) {
         return this.starsLeaderboardCache.slice();
       }
       if (this.starsLeaderboardLoadPromise) return this.starsLeaderboardLoadPromise;
@@ -179,6 +227,8 @@
           const entries = this.mapBackendLeaderboard(payload);
           this.starsLeaderboardCache = entries;
           this.starsLeaderboardCacheAt = Date.now();
+          this.starsLeaderboardCacheStars = currentStars;
+          this.saveStoredStarsLeaderboard(entries);
           return entries.slice();
         })
         .finally(() => {
@@ -272,12 +322,30 @@
     },
 
     publishOkEndlessScore(score) {
-      const value = Math.max(0, Math.floor(Number(score) || 0));
+      const progress = this.mergeEndlessScoreProgress(this.cloudProgress || {});
+      this.cloudProgress = progress;
+      const value = Math.max(
+        Math.floor(Number(score) || 0),
+        progress.endlessBestScore
+      );
+      if (value <= progress.endlessSubmittedScore) return Promise.resolve(true);
       if (!this.backendClient || !value) return Promise.resolve(false);
       if (this.okEndlessScoreSubmitInFlight) return this.okEndlessScoreSubmitInFlight;
       this.okEndlessScoreSubmitInFlight = this.backendClient
         .submitOkEndlessScore(value, this.getPlatformPlayerName())
-        .then(() => true)
+        .then(() => {
+          if (!this.cloudProgress) this.cloudProgress = {};
+          this.cloudProgress.endlessSubmittedScore = Math.max(
+            Math.floor(Number(this.cloudProgress.endlessSubmittedScore) || 0),
+            value
+          );
+          this.saveLocalSubmittedScore(this.cloudProgress.endlessSubmittedScore);
+          this.okEndlessLeaderboardCache = null;
+          this.okEndlessLeaderboardCacheAt = 0;
+          this.markCloudDirty(0);
+          this.flushCloudProgress();
+          return true;
+        })
         .catch((error) => {
           this.warnPlatformIssue('OK endless score submit failed', error);
           return false;
@@ -286,6 +354,20 @@
           this.okEndlessScoreSubmitInFlight = null;
         });
       return this.okEndlessScoreSubmitInFlight;
+    },
+
+    retryPendingOkEndlessScore() {
+      const progress = this.mergeEndlessScoreProgress(this.cloudProgress || {});
+      this.cloudProgress = progress;
+      if (progress.endlessBestScore <= progress.endlessSubmittedScore) return Promise.resolve(true);
+      return this.publishOkEndlessScore(progress.endlessBestScore).then((sent) => {
+        if (!sent) return false;
+        const current = this.mergeEndlessScoreProgress(this.cloudProgress || {});
+        this.cloudProgress = current;
+        return current.endlessBestScore <= current.endlessSubmittedScore
+          ? true
+          : this.publishOkEndlessScore(current.endlessBestScore);
+      });
     },
 
     async loadOkEndlessLeaderboard() {
@@ -358,7 +440,13 @@
       if (type === 'stars') {
         if (!this.game) return false;
         try {
-          this.game.setLeaderboardEntries(await this.loadStarsLeaderboard());
+          const totalStars = this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
+          const playerName = this.getPlatformPlayerName();
+          const submitted = this.loadProgressLeaderboardSync();
+          const needsSync = totalStars > 0 && (!submitted || submitted.totalStars < totalStars ||
+            (playerName && submitted.playerName !== playerName));
+          await this.syncProgressLeaderboards({ immediate: true, reason: 'leaderboard' });
+          this.game.setLeaderboardEntries(await this.loadStarsLeaderboard(needsSync));
           return true;
         } catch (error) {
           this.game.setLeaderboardError(this.t('leaderboard.backendUnavailable'));
@@ -376,6 +464,7 @@
       this.submitLeaderboardScore(score);
       if (this.isOkClient()) {
         try {
+          await this.retryPendingOkEndlessScore();
           this.game.setLeaderboardEntries(await this.loadOkEndlessLeaderboard());
           return true;
         } catch (error) {
@@ -397,6 +486,7 @@
       if (!this.game) return false;
       if (type !== 'stars') {
         try {
+          if (this.isOkClient()) await this.retryPendingOkEndlessScore();
           const entries = this.isOkClient()
             ? await this.loadOkEndlessLeaderboard()
             : await this.loadVkEndlessLeaderboard();
@@ -410,14 +500,23 @@
           return false;
         }
       }
-      try {
-        await this.syncProgressLeaderboards({ immediate: true });
-        this.game.setGameOverLeaderboardEntries(await this.loadStarsLeaderboard(true));
-        return true;
-      } catch (error) {
-        this.game.setGameOverLeaderboardError(this.t('leaderboard.backendUnavailable'));
-        return false;
+      const stored = this.loadStoredStarsLeaderboard();
+      const cached = this.starsLeaderboardCache || (stored && stored.entries) || [];
+      const top = cached.filter((entry) => entry && entry.rank >= 1 && entry.rank <= 5)
+        .sort((left, right) => left.rank - right.rank)
+        .slice(0, 5);
+      const playerInTop = top.find((entry) => entry.isPlayer);
+      if (playerInTop) playerInTop.score = Math.max(0, Math.floor(Number(score) || 0));
+      if (!playerInTop) {
+        top.push({
+          rank: null,
+          name: this.getPlatformPlayerName() || this.game.playerName || this.t('leaderboard.player'),
+          score: Math.max(0, Math.floor(Number(score) || 0)),
+          isPlayer: true
+        });
       }
+      this.game.setGameOverLeaderboardEntries(top);
+      return true;
     },
 
     getPurchaseProduct(packId) {
@@ -470,6 +569,7 @@
           item: product.item
         });
         this.purchaseAwaitingConfirmation = true;
+        this.savePurchaseAwaitingConfirmation(true);
         this.game.coinShopError = this.t('shop.processing');
         this.pollPurchaseConfirmation();
         return true;
@@ -539,6 +639,55 @@
       if (this.game) this.game.coinShopPurchaseSources = {};
     },
 
+    purchaseStateStorageKey(baseKey) {
+      const userKey = this.progressLeaderboardSyncKey();
+      return userKey ? String(baseKey || '') + '-' + userKey : String(baseKey || '');
+    },
+
+    loadPurchaseAwaitingConfirmation() {
+      try {
+        return window.localStorage.getItem(
+          this.purchaseStateStorageKey(this.purchaseAwaitingLocalKey)
+        ) === '1';
+      } catch (error) {
+        return false;
+      }
+    },
+
+    savePurchaseAwaitingConfirmation(value) {
+      this.purchaseAwaitingConfirmation = !!value;
+      try {
+        const key = this.purchaseStateStorageKey(this.purchaseAwaitingLocalKey);
+        if (value) window.localStorage.setItem(key, '1');
+        else window.localStorage.removeItem(key);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    },
+
+    loadPurchasePendingCheckAt() {
+      try {
+        return Math.max(0, Math.floor(Number(window.localStorage.getItem(
+          this.purchaseStateStorageKey(this.purchasePendingCheckLocalKey)
+        )) || 0));
+      } catch (error) {
+        return 0;
+      }
+    },
+
+    savePurchasePendingCheckAt(value) {
+      try {
+        window.localStorage.setItem(
+          this.purchaseStateStorageKey(this.purchasePendingCheckLocalKey),
+          String(Math.max(0, Math.floor(Number(value) || 0)))
+        );
+        return true;
+      } catch (error) {
+        return false;
+      }
+    },
+
     async persistPurchaseEvents(coins, eventIds, grantedCoins) {
       if (!this.game || !this.isServerBackedPlayer()) return false;
       const value = Math.max(0, Math.floor(Number(coins) || 0));
@@ -573,6 +722,17 @@
 
     processPendingPurchases(options) {
       const source = options && typeof options === 'object' ? options : {};
+      if (!this.purchaseAwaitingConfirmation) {
+        this.purchaseAwaitingConfirmation = this.loadPurchaseAwaitingConfirmation();
+      }
+      if (source.source === 'boot' && !this.purchaseAwaitingConfirmation &&
+          Date.now() - this.loadPurchasePendingCheckAt() < 24 * 60 * 60 * 1000) {
+        return Promise.resolve(false);
+      }
+      if (source.source === 'shop' && !this.purchaseAwaitingConfirmation &&
+          Date.now() - this.loadPurchasePendingCheckAt() < 5 * 60 * 1000) {
+        return Promise.resolve(false);
+      }
       if (this.purchaseEventsInFlight) {
         return this.purchaseEventsPromise || Promise.resolve(false);
       }
@@ -616,6 +776,8 @@
             await this.backendClient.ackPurchaseEvent(eventId);
           }
           if (ackIds.length) this.purchaseAwaitingConfirmation = false;
+          if (ackIds.length) this.savePurchaseAwaitingConfirmation(false);
+          this.savePurchasePendingCheckAt(Date.now());
           if (this.game.coinShopOpen) {
             this.game.coinShopError = (source.afterPurchase || this.purchaseAwaitingConfirmation) && !ackIds.length
               ? this.t('shop.processing')

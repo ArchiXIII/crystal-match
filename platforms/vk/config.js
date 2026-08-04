@@ -6,6 +6,8 @@
     appId: 54691807,
     storageKey: 'crystalProgress',
     purchaseEventsLocalKey: 'crystal-match-vk-purchase-events',
+    purchasePendingCheckLocalKey: 'crystal-match-vk-purchase-check',
+    purchaseAwaitingLocalKey: 'crystal-match-vk-purchase-awaiting',
     localBestScoreKey: 'crystal-match-vk-best-score',
     localSubmittedScoreKey: 'crystal-match-vk-endless-submitted-score',
     backendUrl: 'https://d5dl7q0eh16ojp505u1v.6brbn2wz.apigw.yandexcloud.net',

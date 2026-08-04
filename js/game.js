@@ -42,6 +42,7 @@
       this.saveAdBonusExternal = typeof options.saveAdBonus === 'function' ? options.saveAdBonus : null;
       this.saveLevelProgressExternal = typeof options.saveLevelProgress === 'function' ? options.saveLevelProgress : null;
       this.saveSettingsExternal = typeof options.saveSettings === 'function' ? options.saveSettings : null;
+      this.reportGameProgressExternal = typeof options.reportGameProgress === 'function' ? options.reportGameProgress : null;
       this.submitScoreExternal = typeof options.submitScore === 'function' ? options.submitScore : null;
       this.submitStarsExternal = typeof options.submitStars === 'function' ? options.submitStars : null;
       this.syncPlatformLeaderboardsExternal = typeof options.syncPlatformLeaderboards === 'function' ? options.syncPlatformLeaderboards : null;
