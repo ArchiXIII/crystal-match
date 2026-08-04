@@ -232,6 +232,7 @@
 
   Renderer.prototype.leaderboardRows = function (entries) {
       const sorted = (entries || []).slice().filter((entry) => entry && Number.isFinite(entry.rank)).sort((a, b) => a.rank - b.rank);
+      const unrankedPlayer = (entries || []).find((entry) => entry && entry.isPlayer && !Number.isFinite(entry.rank));
       const top = sorted.filter((entry) => entry.rank <= 10).slice(0, 10);
       const player = sorted.find((entry) => entry.isPlayer);
       const rows = top.slice();
@@ -241,13 +242,17 @@
           rows.push({ divider: true });
           around.forEach((entry) => rows.push(entry));
         }
+      } else if (unrankedPlayer) {
+        if (rows.length) rows.push({ divider: true });
+        rows.push(unrankedPlayer);
       }
       return rows.length ? rows.slice(0, 16) : sorted.slice(0, 12);
     };
 
   Renderer.prototype.drawLeaderboardRow = function (ctx, entry, x, y, w, h, compact) {
       const isPlayer = entry.isPlayer;
-      const rank = entry.rank || 0;
+      const hasRank = Number.isFinite(entry.rank);
+      const rank = hasRank ? entry.rank : 0;
       const medal = rank === 1
         ? { main: '#ffe590', edge: '#f6bd4c', glow: 'rgba(255, 219, 92, 0.72)', fillA: 'rgba(255, 220, 108, 0.2)', fillB: 'rgba(126, 79, 18, 0.12)' }
         : rank === 2
@@ -294,13 +299,13 @@
         ctx.textAlign = 'center';
         ctx.fillStyle = isPlayer ? '#ffe590' : '#f6bd4c';
         ctx.font = '800 ' + (compact ? 13 : 15) + 'px CrystalUI, Arial';
-        ctx.fillText(String(rank), x + 28, y + h / 2 + 1);
+        if (hasRank) ctx.fillText(String(rank), x + 28, y + h / 2 + 1);
       }
 
       ctx.textAlign = 'left';
       ctx.fillStyle = isPlayer ? '#ffe590' : '#fff4d6';
       ctx.font = '700 ' + (compact ? 12 : 14) + 'px CrystalUI, Arial';
-      ctx.fillText(entry.name || this.t('leaderboard.player'), x + 58, y + h / 2 + 1, w - 160);
+      ctx.fillText(entry.name || this.t('leaderboard.player'), x + (hasRank ? 58 : 14), y + h / 2 + 1, w - (hasRank ? 160 : 116));
 
       ctx.textAlign = 'right';
       ctx.fillStyle = medal ? medal.main : (isPlayer ? '#ffe590' : '#fff4d6');

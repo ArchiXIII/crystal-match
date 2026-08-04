@@ -89,8 +89,6 @@
       this.leaderboardSyncInFlight = this.backendClient.syncLeaderboards(totalStars, playerName)
         .then(() => {
           this.lastLeaderboardSyncValues = values;
-          this.starsLeaderboardCache = null;
-          this.starsLeaderboardCacheAt = 0;
           this.saveProgressLeaderboardSync(
             Math.max(totalStars, submitted ? submitted.totalStars : 0),
             playerName || (submitted && submitted.playerName) || ''
@@ -138,6 +136,92 @@
       } catch (error) {
         return false;
       }
+    },
+
+    endlessLeaderboardStorageKey() {
+      const syncKey = this.progressLeaderboardSyncKey();
+      return syncKey ? syncKey.replace('-stars-submitted-', '-endless-cache-') : '';
+    },
+
+    loadStoredEndlessLeaderboard() {
+      const key = this.endlessLeaderboardStorageKey();
+      if (!key) return null;
+      try {
+        const stored = JSON.parse(window.localStorage.getItem(key) || 'null');
+        if (!stored || !Array.isArray(stored.entries)) return null;
+        return {
+          entries: stored.entries.filter((entry) => entry && typeof entry === 'object'),
+          savedAt: Math.max(0, Math.floor(Number(stored.savedAt) || 0))
+        };
+      } catch (error) {
+        return null;
+      }
+    },
+
+    saveStoredEndlessLeaderboard(entries) {
+      const key = this.endlessLeaderboardStorageKey();
+      if (!key) return false;
+      try {
+        window.localStorage.setItem(key, JSON.stringify({
+          entries: Array.isArray(entries) ? entries.slice(0, 12) : [],
+          savedAt: Date.now()
+        }));
+        return true;
+      } catch (error) {
+        return false;
+      }
+    },
+
+    currentPlatformUserId() {
+      const params = new URLSearchParams(window.location.search || '');
+      return String(
+        (this.isOkClient() && params.get('vk_ok_user_id')) ||
+        (this.vkUser && this.vkUser.id) ||
+        (this.vkLaunchParams && this.vkLaunchParams.vk_user_id) ||
+        ''
+      );
+    },
+
+    mergePlayerIntoCachedTop(entries, score, name, limit) {
+      const maxRows = Math.max(1, Math.floor(Number(limit) || 10));
+      const value = Math.max(0, Math.floor(Number(score) || 0));
+      const source = Array.isArray(entries) ? entries : [];
+      const cachedPlayer = source.find((entry) => entry && entry.isPlayer) || null;
+      const playerId = this.currentPlatformUserId();
+      const top = source
+        .filter((entry) => entry && Number.isFinite(entry.rank) && entry.rank >= 1 && entry.rank <= maxRows && !entry.isPlayer)
+        .slice(0, maxRows)
+        .map((entry) => Object.assign({}, entry));
+      const player = {
+        rank: cachedPlayer && Number.isFinite(cachedPlayer.rank) && cachedPlayer.score === value
+          ? cachedPlayer.rank
+          : null,
+        userId: playerId || (cachedPlayer && cachedPlayer.userId) || '',
+        name: name || (cachedPlayer && cachedPlayer.name) || this.t('leaderboard.player'),
+        score: value,
+        isPlayer: true
+      };
+      const combined = top.concat(player);
+      combined.sort((left, right) => {
+        if (right.score !== left.score) return right.score - left.score;
+        const leftId = String(left.userId || '');
+        const rightId = String(right.userId || '');
+        if (leftId && rightId && leftId !== rightId) return leftId < rightId ? -1 : 1;
+        const leftRank = left.isPlayer && cachedPlayer && Number.isFinite(cachedPlayer.rank)
+          ? cachedPlayer.rank
+          : (left.rank || maxRows + 1);
+        const rightRank = right.isPlayer && cachedPlayer && Number.isFinite(cachedPlayer.rank)
+          ? cachedPlayer.rank
+          : (right.rank || maxRows + 1);
+        return leftRank - rightRank;
+      });
+      const playerIndex = combined.indexOf(player);
+      if (playerIndex < maxRows) {
+        return combined.slice(0, maxRows).map((entry, index) => Object.assign(entry, { rank: index + 1 }));
+      }
+      top.sort((left, right) => left.rank - right.rank);
+      top.push(player);
+      return top;
     },
 
     leaderboardPayloadEntries(payload) {
@@ -196,6 +280,7 @@
         );
         result.push({
           rank,
+          userId: entryUserId,
           name,
           score,
           isPlayer: !!(entry.isPlayer || entry.isCurrentUser || entry.currentUser || (userId && entryUserId === userId))
@@ -217,12 +302,11 @@
       }
       const currentStars = this.game && this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
       if (!force && this.starsLeaderboardCache &&
-          this.starsLeaderboardCacheStars >= currentStars &&
           now - this.starsLeaderboardCacheAt < this.starsLeaderboardCacheTtl) {
         return this.starsLeaderboardCache.slice();
       }
       if (this.starsLeaderboardLoadPromise) return this.starsLeaderboardLoadPromise;
-      this.starsLeaderboardLoadPromise = this.backendClient.getStarsLeaderboard(20, 0)
+      this.starsLeaderboardLoadPromise = this.backendClient.getStarsLeaderboard(10, 0)
         .then((payload) => {
           const entries = this.mapBackendLeaderboard(payload);
           this.starsLeaderboardCache = entries;
@@ -283,6 +367,7 @@
         const score = Math.max(0, Math.floor(Number(entry.points !== undefined ? entry.points : entry.score) || 0));
         return {
           rank,
+          userId: entryUserId,
           name: names.get(entryUserId) || this.t('leaderboard.player'),
           score,
           isPlayer: !!(userId && entryUserId === userId)
@@ -290,7 +375,7 @@
       });
     },
 
-    async loadVkEndlessLeaderboard() {
+    async loadVkEndlessLeaderboard(force) {
       if (!this.vkBridge) {
         const error = new Error('VK_UNAVAILABLE');
         this.warnPlatformIssue('Endless leaderboard read failed', error);
@@ -301,20 +386,42 @@
       } catch (error) {
         this.warnPlatformIssue('Endless score submit failed', error);
       }
+      const now = Date.now();
+      if (!this.endlessLeaderboardCache) {
+        const stored = this.loadStoredEndlessLeaderboard();
+        if (stored) {
+          this.endlessLeaderboardCache = stored.entries;
+          this.endlessLeaderboardCacheAt = stored.savedAt;
+        }
+      }
+      if (!force && this.endlessLeaderboardCache &&
+          now - this.endlessLeaderboardCacheAt < this.endlessLeaderboardCacheTtl) {
+        return this.endlessLeaderboardCache.slice();
+      }
+      if (this.endlessLeaderboardLoadPromise) return this.endlessLeaderboardLoadPromise;
       try {
-        const token = await this.getVkApiToken();
-        const platformConfig = window.CrystalMatchPlatformConfig || {};
-        const response = await this.vkBridge.send('VKWebAppCallAPIMethod', {
-          method: 'apps.getLeaderboard',
-          params: {
-            type: 'points',
-            global: 1,
-            extended: 1,
-            access_token: token,
-            v: String(platformConfig.apiVersion || '5.199')
-          }
+        this.endlessLeaderboardLoadPromise = this.getVkApiToken().then((token) => {
+          const platformConfig = window.CrystalMatchPlatformConfig || {};
+          return this.vkBridge.send('VKWebAppCallAPIMethod', {
+            method: 'apps.getLeaderboard',
+            params: {
+              type: 'points',
+              global: 1,
+              extended: 1,
+              access_token: token,
+              v: String(platformConfig.apiVersion || '5.199')
+            }
+          });
+        }).then((response) => {
+          const entries = this.mapVkEndlessLeaderboard(response).filter((entry) => entry.rank <= 10 || entry.isPlayer);
+          this.endlessLeaderboardCache = entries;
+          this.endlessLeaderboardCacheAt = Date.now();
+          this.saveStoredEndlessLeaderboard(entries);
+          return entries.slice();
+        }).finally(() => {
+          this.endlessLeaderboardLoadPromise = null;
         });
-        return this.mapVkEndlessLeaderboard(response);
+        return await this.endlessLeaderboardLoadPromise;
       } catch (error) {
         this.warnPlatformIssue('Endless leaderboard read failed', error);
         throw error;
@@ -340,8 +447,6 @@
             value
           );
           this.saveLocalSubmittedScore(this.cloudProgress.endlessSubmittedScore);
-          this.okEndlessLeaderboardCache = null;
-          this.okEndlessLeaderboardCacheAt = 0;
           this.markCloudDirty(0);
           this.flushCloudProgress();
           return true;
@@ -370,24 +475,33 @@
       });
     },
 
-    async loadOkEndlessLeaderboard() {
+    async loadOkEndlessLeaderboard(force) {
       if (!this.backendClient) throw new Error('BACKEND_UNAVAILABLE');
       const now = Date.now();
-      if (this.okEndlessLeaderboardCache && now - this.okEndlessLeaderboardCacheAt < 30000) {
-        return this.okEndlessLeaderboardCache.slice();
+      if (!this.endlessLeaderboardCache) {
+        const stored = this.loadStoredEndlessLeaderboard();
+        if (stored) {
+          this.endlessLeaderboardCache = stored.entries;
+          this.endlessLeaderboardCacheAt = stored.savedAt;
+        }
       }
-      if (this.okEndlessLeaderboardLoadPromise) return this.okEndlessLeaderboardLoadPromise;
-      this.okEndlessLeaderboardLoadPromise = this.backendClient.getOkEndlessLeaderboard(20, 0)
+      if (!force && this.endlessLeaderboardCache &&
+          now - this.endlessLeaderboardCacheAt < this.endlessLeaderboardCacheTtl) {
+        return this.endlessLeaderboardCache.slice();
+      }
+      if (this.endlessLeaderboardLoadPromise) return this.endlessLeaderboardLoadPromise;
+      this.endlessLeaderboardLoadPromise = this.backendClient.getOkEndlessLeaderboard(10, 0)
         .then((payload) => {
-          const entries = this.mapBackendLeaderboard(payload);
-          this.okEndlessLeaderboardCache = entries;
-          this.okEndlessLeaderboardCacheAt = Date.now();
+          const entries = this.mapBackendLeaderboard(payload).filter((entry) => entry.rank <= 10 || entry.isPlayer);
+          this.endlessLeaderboardCache = entries;
+          this.endlessLeaderboardCacheAt = Date.now();
+          this.saveStoredEndlessLeaderboard(entries);
           return entries.slice();
         })
         .finally(() => {
-          this.okEndlessLeaderboardLoadPromise = null;
+          this.endlessLeaderboardLoadPromise = null;
         });
-      return this.okEndlessLeaderboardLoadPromise;
+      return this.endlessLeaderboardLoadPromise;
     },
 
     retryPendingEndlessScore() {
@@ -442,11 +556,9 @@
         try {
           const totalStars = this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
           const playerName = this.getPlatformPlayerName();
-          const submitted = this.loadProgressLeaderboardSync();
-          const needsSync = totalStars > 0 && (!submitted || submitted.totalStars < totalStars ||
-            (playerName && submitted.playerName !== playerName));
           await this.syncProgressLeaderboards({ immediate: true, reason: 'leaderboard' });
-          this.game.setLeaderboardEntries(await this.loadStarsLeaderboard(needsSync));
+          const entries = await this.loadStarsLeaderboard(false);
+          this.game.setLeaderboardEntries(this.mergePlayerIntoCachedTop(entries, totalStars, playerName, 10));
           return true;
         } catch (error) {
           this.game.setLeaderboardError(this.t('leaderboard.backendUnavailable'));
@@ -465,7 +577,13 @@
       if (this.isOkClient()) {
         try {
           await this.retryPendingOkEndlessScore();
-          this.game.setLeaderboardEntries(await this.loadOkEndlessLeaderboard());
+          const entries = await this.loadOkEndlessLeaderboard(false);
+          this.game.setLeaderboardEntries(this.mergePlayerIntoCachedTop(
+            entries,
+            score,
+            this.getPlatformPlayerName(),
+            10
+          ));
           return true;
         } catch (error) {
           this.warnPlatformIssue('OK endless leaderboard read failed', error);
@@ -474,7 +592,13 @@
         }
       }
       try {
-        this.game.setLeaderboardEntries(await this.loadVkEndlessLeaderboard());
+        const entries = await this.loadVkEndlessLeaderboard(false);
+        this.game.setLeaderboardEntries(this.mergePlayerIntoCachedTop(
+          entries,
+          score,
+          this.getPlatformPlayerName(),
+          10
+        ));
         return true;
       } catch (error) {
         this.game.setLeaderboardError(this.t('leaderboard.unavailable'));
@@ -488,9 +612,14 @@
         try {
           if (this.isOkClient()) await this.retryPendingOkEndlessScore();
           const entries = this.isOkClient()
-            ? await this.loadOkEndlessLeaderboard()
-            : await this.loadVkEndlessLeaderboard();
-          this.game.setGameOverLeaderboardEntries(entries);
+            ? await this.loadOkEndlessLeaderboard(false)
+            : await this.loadVkEndlessLeaderboard(false);
+          this.game.setGameOverLeaderboardEntries(this.mergePlayerIntoCachedTop(
+            entries,
+            score,
+            this.getPlatformPlayerName(),
+            10
+          ));
           return true;
         } catch (error) {
           this.warnPlatformIssue('Game over endless leaderboard read failed', error);
@@ -501,21 +630,24 @@
         }
       }
       const stored = this.loadStoredStarsLeaderboard();
-      const cached = this.starsLeaderboardCache || (stored && stored.entries) || [];
-      const top = cached.filter((entry) => entry && entry.rank >= 1 && entry.rank <= 5)
-        .sort((left, right) => left.rank - right.rank)
-        .slice(0, 5);
-      const playerInTop = top.find((entry) => entry.isPlayer);
-      if (playerInTop) playerInTop.score = Math.max(0, Math.floor(Number(score) || 0));
-      if (!playerInTop) {
-        top.push({
-          rank: null,
-          name: this.getPlatformPlayerName() || this.game.playerName || this.t('leaderboard.player'),
-          score: Math.max(0, Math.floor(Number(score) || 0)),
-          isPlayer: true
-        });
+      let cached = this.starsLeaderboardCache || (stored && stored.entries) || [];
+      const cacheSavedAt = Math.max(
+        Math.max(0, Number(this.starsLeaderboardCacheAt) || 0),
+        stored ? Math.max(0, Number(stored.savedAt) || 0) : 0
+      );
+      if (!cached.length && Date.now() - cacheSavedAt >= this.starsLeaderboardCacheTtl) {
+        try {
+          cached = await this.loadStarsLeaderboard(true);
+        } catch (error) {
+          this.warnPlatformIssue('Game over stars leaderboard read failed', error);
+        }
       }
-      this.game.setGameOverLeaderboardEntries(top);
+      this.game.setGameOverLeaderboardEntries(this.mergePlayerIntoCachedTop(
+        cached,
+        score,
+        this.getPlatformPlayerName() || this.game.playerName,
+        10
+      ));
       return true;
     },
 
