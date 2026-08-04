@@ -718,7 +718,7 @@
 
     pollPurchaseConfirmation() {
       if (this.purchaseConfirmationPromise) return this.purchaseConfirmationPromise;
-      const delays = [0, 1500, 3000, 6000, 10000, 15000, 25000];
+      const delays = [0, 4000, 8000, 18000];
       this.purchaseConfirmationPromise = (async () => {
         for (const delay of delays) {
           if (!this.purchaseAwaitingConfirmation) return true;
@@ -820,6 +820,13 @@
       }
     },
 
+    hasPurchaseHistory() {
+      if (this.appliedPurchaseEventIds.length) return true;
+      if (this.cloudProgress && Array.isArray(this.cloudProgress.appliedPurchaseEventIds) &&
+          this.cloudProgress.appliedPurchaseEventIds.length) return true;
+      return this.loadLocalPurchaseEventIds().length > 0;
+    },
+
     async persistPurchaseEvents(coins, eventIds, grantedCoins) {
       if (!this.game || !this.isServerBackedPlayer()) return false;
       const value = Math.max(0, Math.floor(Number(coins) || 0));
@@ -857,13 +864,12 @@
       if (!this.purchaseAwaitingConfirmation) {
         this.purchaseAwaitingConfirmation = this.loadPurchaseAwaitingConfirmation();
       }
-      if (source.source === 'boot' && !this.purchaseAwaitingConfirmation &&
-          Date.now() - this.loadPurchasePendingCheckAt() < 24 * 60 * 60 * 1000) {
-        return Promise.resolve(false);
-      }
-      if (source.source === 'shop' && !this.purchaseAwaitingConfirmation &&
-          Date.now() - this.loadPurchasePendingCheckAt() < 5 * 60 * 1000) {
-        return Promise.resolve(false);
+      if (!this.purchaseAwaitingConfirmation &&
+          (source.source === 'boot' || source.source === 'shop')) {
+        if (!this.hasPurchaseHistory() ||
+            Date.now() - this.loadPurchasePendingCheckAt() < 24 * 60 * 60 * 1000) {
+          return Promise.resolve(false);
+        }
       }
       if (this.purchaseEventsInFlight) {
         return this.purchaseEventsPromise || Promise.resolve(false);
