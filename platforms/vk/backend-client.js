@@ -9,11 +9,41 @@
       this.getLaunchParams = typeof source.getLaunchParams === 'function'
         ? source.getLaunchParams
         : () => '';
+      this.backoffUntil = 0;
+      this.backoffDelay = 10000;
+      this.backoffMax = 60000;
+    }
+
+    isRetryableError(error) {
+      if (!error) return false;
+      const status = Math.floor(Number(error.status) || 0);
+      return status === 429 || status >= 500 ||
+        error.message === 'BACKEND_TIMEOUT' ||
+        error.backendCode === 'SERVICE_BUSY';
+    }
+
+    beginBackoff(error) {
+      const retryAfter = Math.max(0, Math.floor(Number(error && error.retryAfter) || 0) * 1000);
+      const delay = Math.max(this.backoffDelay, retryAfter);
+      this.backoffUntil = Math.max(this.backoffUntil, Date.now() + delay);
+      this.backoffDelay = Math.min(this.backoffMax, Math.max(10000, delay * 2));
+    }
+
+    noteSuccess() {
+      if (Date.now() >= this.backoffUntil) {
+        this.backoffUntil = 0;
+        this.backoffDelay = 10000;
+      }
     }
 
     async request(path, options) {
       if (!this.baseUrl || !window.fetch) throw new Error('BACKEND_UNAVAILABLE');
       const source = options && typeof options === 'object' ? options : {};
+      if (Date.now() < this.backoffUntil) {
+        const error = new Error('BACKEND_BACKOFF');
+        error.retryAt = this.backoffUntil;
+        throw error;
+      }
       const controller = typeof AbortController === 'function' ? new AbortController() : null;
       const headers = Object.assign({}, source.headers || {});
       const launchParams = String(this.getLaunchParams() || '');
@@ -40,6 +70,8 @@
             const payload = text ? JSON.parse(text) : null;
             const source = payload && typeof payload === 'object' ? payload : {};
             const nested = source.error && typeof source.error === 'object' ? source.error : {};
+            error.backendCode = String(nested.code || source.code || '');
+            error.retryAfter = Math.max(0, Math.floor(Number(response.headers.get('Retry-After')) || 0));
             const code = Number(
               source.vkErrorCode ||
               source.errorCode ||
@@ -61,12 +93,16 @@
           } catch (parseError) {}
           throw error;
         }
+        this.noteSuccess();
         if (response.status === 204) return null;
         const text = await response.text();
         return text ? JSON.parse(text) : null;
       } catch (error) {
-        if (error && error.name === 'AbortError') throw new Error('BACKEND_TIMEOUT');
-        throw error;
+        const result = error && error.name === 'AbortError'
+          ? new Error('BACKEND_TIMEOUT')
+          : error;
+        if (this.isRetryableError(result)) this.beginBackoff(result);
+        throw result;
       } finally {
         if (timer !== null) window.clearTimeout(timer);
       }

@@ -55,7 +55,17 @@
       }
     },
 
-    syncProgressLeaderboards() {
+    syncProgressLeaderboards(options) {
+      const source = options && typeof options === 'object' ? options : {};
+      if (!source.immediate && this.game && this.game.menuOpen && !this.game.gameOver) {
+        if (!this.leaderboardBootSyncTimer) {
+          this.leaderboardBootSyncTimer = window.setTimeout(() => {
+            this.leaderboardBootSyncTimer = null;
+            this.syncProgressLeaderboards({ immediate: true });
+          }, 5000);
+        }
+        return Promise.resolve(true);
+      }
       if (this.isOkClient()) {
         if (this.game && this.game.gameMode === 'endless' && this.game.gameOver) {
           this.publishOkEndlessScore(this.game.score);
@@ -78,6 +88,8 @@
       this.leaderboardSyncInFlight = this.backendClient.syncLeaderboards(totalStars, playerName)
         .then(() => {
           this.lastLeaderboardSyncValues = values;
+          this.starsLeaderboardCache = null;
+          this.starsLeaderboardCacheAt = 0;
           this.saveProgressLeaderboardSync(
             Math.max(totalStars, submitted ? submitted.totalStars : 0),
             playerName || (submitted && submitted.playerName) || ''
@@ -155,11 +167,24 @@
       return result.sort((a, b) => a.rank - b.rank);
     },
 
-    async loadStarsLeaderboard() {
+    async loadStarsLeaderboard(force) {
       if (!this.backendClient) throw new Error('BACKEND_UNAVAILABLE');
-      const payload = await this.backendClient.getStarsLeaderboard(20, 0);
-      this.syncProgressLeaderboards();
-      return this.mapBackendLeaderboard(payload);
+      const now = Date.now();
+      if (!force && this.starsLeaderboardCache && now - this.starsLeaderboardCacheAt < 30000) {
+        return this.starsLeaderboardCache.slice();
+      }
+      if (this.starsLeaderboardLoadPromise) return this.starsLeaderboardLoadPromise;
+      this.starsLeaderboardLoadPromise = this.backendClient.getStarsLeaderboard(20, 0)
+        .then((payload) => {
+          const entries = this.mapBackendLeaderboard(payload);
+          this.starsLeaderboardCache = entries;
+          this.starsLeaderboardCacheAt = Date.now();
+          return entries.slice();
+        })
+        .finally(() => {
+          this.starsLeaderboardLoadPromise = null;
+        });
+      return this.starsLeaderboardLoadPromise;
     },
 
     getVkApiToken() {
@@ -265,8 +290,22 @@
 
     async loadOkEndlessLeaderboard() {
       if (!this.backendClient) throw new Error('BACKEND_UNAVAILABLE');
-      const payload = await this.backendClient.getOkEndlessLeaderboard(20, 0);
-      return this.mapBackendLeaderboard(payload);
+      const now = Date.now();
+      if (this.okEndlessLeaderboardCache && now - this.okEndlessLeaderboardCacheAt < 30000) {
+        return this.okEndlessLeaderboardCache.slice();
+      }
+      if (this.okEndlessLeaderboardLoadPromise) return this.okEndlessLeaderboardLoadPromise;
+      this.okEndlessLeaderboardLoadPromise = this.backendClient.getOkEndlessLeaderboard(20, 0)
+        .then((payload) => {
+          const entries = this.mapBackendLeaderboard(payload);
+          this.okEndlessLeaderboardCache = entries;
+          this.okEndlessLeaderboardCacheAt = Date.now();
+          return entries.slice();
+        })
+        .finally(() => {
+          this.okEndlessLeaderboardLoadPromise = null;
+        });
+      return this.okEndlessLeaderboardLoadPromise;
     },
 
     retryPendingEndlessScore() {
@@ -372,7 +411,8 @@
         }
       }
       try {
-        this.game.setGameOverLeaderboardEntries(await this.loadStarsLeaderboard());
+        await this.syncProgressLeaderboards({ immediate: true });
+        this.game.setGameOverLeaderboardEntries(await this.loadStarsLeaderboard(true));
         return true;
       } catch (error) {
         this.game.setGameOverLeaderboardError(this.t('leaderboard.backendUnavailable'));
@@ -446,7 +486,7 @@
 
     pollPurchaseConfirmation() {
       if (this.purchaseConfirmationPromise) return this.purchaseConfirmationPromise;
-      const delays = [0, 500, 1000, 2000, 4000, 8000, 12000, 20000];
+      const delays = [0, 1500, 3000, 6000, 10000, 15000, 25000];
       this.purchaseConfirmationPromise = (async () => {
         for (const delay of delays) {
           if (!this.purchaseAwaitingConfirmation) return true;
