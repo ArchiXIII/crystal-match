@@ -13,6 +13,48 @@
       return [firstName, lastName].filter(Boolean).join(' ');
     },
 
+    progressLeaderboardSyncKey() {
+      const params = new URLSearchParams(window.location.search || '');
+      const userId = String(
+        (this.isOkClient() && params.get('vk_ok_user_id')) ||
+        (this.vkUser && this.vkUser.id) ||
+        (this.vkLaunchParams && this.vkLaunchParams.vk_user_id) ||
+        ''
+      );
+      return userId
+        ? 'crystal-match-' + (this.isOkClient() ? 'ok' : 'vk') + '-stars-submitted-' + userId
+        : '';
+    },
+
+    loadProgressLeaderboardSync() {
+      const key = this.progressLeaderboardSyncKey();
+      if (!key) return null;
+      try {
+        const value = JSON.parse(window.localStorage.getItem(key) || 'null');
+        if (!value || typeof value !== 'object') return null;
+        return {
+          totalStars: Math.max(0, Math.floor(Number(value.totalStars) || 0)),
+          playerName: typeof value.playerName === 'string' ? value.playerName : ''
+        };
+      } catch (error) {
+        return null;
+      }
+    },
+
+    saveProgressLeaderboardSync(totalStars, playerName) {
+      const key = this.progressLeaderboardSyncKey();
+      if (!key) return false;
+      try {
+        window.localStorage.setItem(key, JSON.stringify({
+          totalStars: Math.max(0, Math.floor(Number(totalStars) || 0)),
+          playerName: typeof playerName === 'string' ? playerName : ''
+        }));
+        return true;
+      } catch (error) {
+        return false;
+      }
+    },
+
     syncProgressLeaderboards() {
       if (this.isOkClient()) {
         if (this.game && this.game.gameMode === 'endless' && this.game.gameOver) {
@@ -27,9 +69,19 @@
       const values = totalStars + ':' + playerName;
       if (this.leaderboardSyncInFlight) return this.leaderboardSyncInFlight;
       if (values === this.lastLeaderboardSyncValues) return Promise.resolve(true);
+      const submitted = this.loadProgressLeaderboardSync();
+      if (!totalStars || (submitted && submitted.totalStars >= totalStars &&
+          (!playerName || submitted.playerName === playerName))) {
+        this.lastLeaderboardSyncValues = values;
+        return Promise.resolve(true);
+      }
       this.leaderboardSyncInFlight = this.backendClient.syncLeaderboards(totalStars, playerName)
         .then(() => {
           this.lastLeaderboardSyncValues = values;
+          this.saveProgressLeaderboardSync(
+            Math.max(totalStars, submitted ? submitted.totalStars : 0),
+            playerName || (submitted && submitted.playerName) || ''
+          );
           return true;
         })
         .catch(() => false)
@@ -105,9 +157,8 @@
 
     async loadStarsLeaderboard() {
       if (!this.backendClient) throw new Error('BACKEND_UNAVAILABLE');
-      const synced = await this.syncProgressLeaderboards();
-      if (!synced) throw new Error('BACKEND_UNAVAILABLE');
       const payload = await this.backendClient.getStarsLeaderboard(20, 0);
+      this.syncProgressLeaderboards();
       return this.mapBackendLeaderboard(payload);
     },
 
@@ -214,14 +265,6 @@
 
     async loadOkEndlessLeaderboard() {
       if (!this.backendClient) throw new Error('BACKEND_UNAVAILABLE');
-      const cloudBest = this.cloudProgress ? Number(this.cloudProgress.endlessBestScore) : 0;
-      const score = Math.max(
-        0,
-        Math.floor(Number(cloudBest) || 0),
-        this.loadLocalBestScore(),
-        Math.floor(Number(this.game && this.game.score) || 0)
-      );
-      if (score) await this.publishOkEndlessScore(score);
       const payload = await this.backendClient.getOkEndlessLeaderboard(20, 0);
       return this.mapBackendLeaderboard(payload);
     },
