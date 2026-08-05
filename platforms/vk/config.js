@@ -39,19 +39,23 @@
     products: {
       coins10000: {
         item: 'coins_10000',
-        votes: 5
+        votes: 5,
+        okPrice: 19
       },
       coins25000: {
         item: 'coins_25000',
-        votes: 10
+        votes: 10,
+        okPrice: 49
       },
       coins60000: {
         item: 'coins_60000',
-        votes: 20
+        votes: 20,
+        okPrice: 99
       },
       coins150000: {
         item: 'coins_150000',
-        votes: 45
+        votes: 45,
+        okPrice: 199
       }
     }
   };

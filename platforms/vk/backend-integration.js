@@ -664,7 +664,8 @@
       if (!item) return null;
       return {
         item,
-        votes: Math.max(0, Math.floor(Number(product.votes) || 0))
+        votes: Math.max(0, Math.floor(Number(product.votes) || 0)),
+        okPrice: Math.max(0, Math.floor(Number(product.okPrice) || 0))
       };
     },
 
@@ -676,9 +677,10 @@
       const catalog = this.game.coinPurchasePackages.map((pack) => {
         const product = this.getPurchaseProduct(pack.id);
         if (!product) return null;
+        const price = this.isOkClient() ? product.okPrice : product.votes;
         return {
           id: pack.id,
-          price: product.votes ? String(product.votes) + suffix : ''
+          price: price ? String(price) + suffix : ''
         };
       }).filter(Boolean);
       this.game.setCoinPurchaseCatalog(catalog);
