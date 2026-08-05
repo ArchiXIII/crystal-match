@@ -57,26 +57,25 @@
 
     syncProgressLeaderboards(options) {
       const source = options && typeof options === 'object' ? options : {};
+      if (source.reason === 'boot') return Promise.resolve(true);
       if (source.reason === 'level' && !source.chapterComplete) {
         return Promise.resolve(true);
-      }
-      if (!source.immediate && this.game && this.game.menuOpen && !this.game.gameOver) {
-        if (!this.leaderboardBootSyncTimer) {
-          this.leaderboardBootSyncTimer = window.setTimeout(() => {
-            this.leaderboardBootSyncTimer = null;
-            this.syncProgressLeaderboards({ immediate: true });
-          }, 5000);
-        }
-        return Promise.resolve(true);
-      }
-      if (this.isOkClient()) {
-        this.retryPendingOkEndlessScore();
-      } else {
-        this.retryPendingEndlessScore();
       }
       if (!this.backendClient || !this.game) return Promise.resolve(false);
       const totalStars = this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
       const playerName = this.getPlatformPlayerName();
+      if (!this.starsLeaderboardCache) {
+        const storedTop = this.loadStoredStarsLeaderboard();
+        if (storedTop) {
+          this.starsLeaderboardCache = storedTop.entries;
+          this.starsLeaderboardCacheAt = storedTop.savedAt;
+          this.starsLeaderboardCacheStars = storedTop.totalStars;
+        }
+      }
+      if (!this.starsLeaderboardCache ||
+          !this.isStarsTopCandidate(this.starsLeaderboardCache, totalStars, playerName)) {
+        return Promise.resolve(true);
+      }
       const values = totalStars + ':' + playerName;
       if (this.leaderboardSyncInFlight) return this.leaderboardSyncInFlight;
       if (values === this.lastLeaderboardSyncValues) return Promise.resolve(true);
@@ -87,19 +86,46 @@
         return Promise.resolve(true);
       }
       this.leaderboardSyncInFlight = this.backendClient.syncLeaderboards(totalStars, playerName)
-        .then(() => {
+        .then((payload) => {
           this.lastLeaderboardSyncValues = values;
           this.saveProgressLeaderboardSync(
             Math.max(totalStars, submitted ? submitted.totalStars : 0),
             playerName || (submitted && submitted.playerName) || ''
           );
-          return true;
+          const entries = this.mapBackendLeaderboard(payload);
+          if (entries.length) {
+            this.starsLeaderboardCache = entries;
+            this.starsLeaderboardCacheAt = Date.now();
+            this.starsLeaderboardCacheStars = totalStars;
+            this.saveStoredStarsLeaderboard(entries);
+          }
+          return payload || true;
         })
         .catch(() => false)
         .finally(() => {
           this.leaderboardSyncInFlight = null;
         });
       return this.leaderboardSyncInFlight;
+    },
+
+    isStarsTopCandidate(entries, totalStars, playerName) {
+      const value = Math.max(0, Math.floor(Number(totalStars) || 0));
+      const userId = this.currentPlatformUserId();
+      const top = (Array.isArray(entries) ? entries : [])
+        .filter((entry) => entry && Number.isFinite(entry.rank) && entry.rank >= 1 && entry.rank <= 10)
+        .sort((left, right) => left.rank - right.rank)
+        .slice(0, 10);
+      const current = top.find((entry) => entry.isPlayer || (userId && String(entry.userId || '') === userId));
+      if (current) {
+        return value > Math.max(0, Math.floor(Number(current.score) || 0)) ||
+          (!!playerName && playerName !== String(current.name || ''));
+      }
+      if (top.length < 10) return true;
+      const last = top[top.length - 1];
+      const lastScore = Math.max(0, Math.floor(Number(last.score) || 0));
+      const lastUserId = String(last.userId || '');
+      return value > lastScore ||
+        (value === lastScore && !!userId && (!lastUserId || userId < lastUserId));
     },
 
     starsLeaderboardStorageKey() {
@@ -556,8 +582,9 @@
         try {
           const totalStars = this.game.totalLevelStars ? this.game.totalLevelStars() : 0;
           const playerName = this.getPlatformPlayerName();
+          let entries = await this.loadStarsLeaderboard(false);
           await this.syncProgressLeaderboards({ immediate: true, reason: 'leaderboard' });
-          const entries = await this.loadStarsLeaderboard(false);
+          entries = this.starsLeaderboardCache || entries;
           this.game.setLeaderboardEntries(this.mergePlayerIntoCachedTop(entries, totalStars, playerName, 10));
           return true;
         } catch (error) {
@@ -642,6 +669,8 @@
           this.warnPlatformIssue('Game over stars leaderboard read failed', error);
         }
       }
+      await this.syncProgressLeaderboards({ immediate: true, reason: 'gameover' });
+      cached = this.starsLeaderboardCache || cached;
       this.game.setGameOverLeaderboardEntries(this.mergePlayerIntoCachedTop(
         cached,
         score,
@@ -780,10 +809,27 @@
 
     loadPurchaseAwaitingConfirmation() {
       try {
-        return window.localStorage.getItem(
-          this.purchaseStateStorageKey(this.purchaseAwaitingLocalKey)
-        ) === '1';
+        const key = this.purchaseStateStorageKey(this.purchaseAwaitingLocalKey);
+        const raw = window.localStorage.getItem(key);
+        if (!raw) return false;
+        const now = Date.now();
+        if (raw === '1') {
+          this.purchaseAwaitingExpiresAt = now + 60 * 60 * 1000;
+          window.localStorage.setItem(key, JSON.stringify({
+            expiresAt: this.purchaseAwaitingExpiresAt
+          }));
+          return true;
+        }
+        const value = JSON.parse(raw);
+        if (value && Number(value.expiresAt) > now) {
+          this.purchaseAwaitingExpiresAt = Number(value.expiresAt);
+          return true;
+        }
+        this.purchaseAwaitingExpiresAt = 0;
+        window.localStorage.removeItem(key);
+        return false;
       } catch (error) {
+        this.purchaseAwaitingExpiresAt = 0;
         return false;
       }
     },
@@ -792,8 +838,15 @@
       this.purchaseAwaitingConfirmation = !!value;
       try {
         const key = this.purchaseStateStorageKey(this.purchaseAwaitingLocalKey);
-        if (value) window.localStorage.setItem(key, '1');
-        else window.localStorage.removeItem(key);
+        if (value) {
+          this.purchaseAwaitingExpiresAt = Date.now() + this.purchaseAwaitingTtlMs;
+          window.localStorage.setItem(key, JSON.stringify({
+            expiresAt: this.purchaseAwaitingExpiresAt
+          }));
+        } else {
+          this.purchaseAwaitingExpiresAt = 0;
+          window.localStorage.removeItem(key);
+        }
         return true;
       } catch (error) {
         return false;
@@ -834,6 +887,10 @@
 
     processPendingPurchases(options) {
       const source = options && typeof options === 'object' ? options : {};
+      if (this.purchaseAwaitingConfirmation && this.purchaseAwaitingExpiresAt &&
+          this.purchaseAwaitingExpiresAt <= Date.now()) {
+        this.savePurchaseAwaitingConfirmation(false);
+      }
       if (!this.purchaseAwaitingConfirmation) {
         this.purchaseAwaitingConfirmation = this.loadPurchaseAwaitingConfirmation();
       }

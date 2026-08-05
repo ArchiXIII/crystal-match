@@ -3,11 +3,12 @@
 
   window.CrystalMatchPlatformConfig = {
     name: 'vk',
-    backendClientVersion: 2,
+    backendClientVersion: 3,
     appId: 54691807,
     storageKey: 'crystalProgress',
     purchaseEventsLocalKey: 'crystal-match-vk-purchase-events',
     purchaseAwaitingLocalKey: 'crystal-match-vk-purchase-awaiting',
+    purchaseAwaitingTtlMs: 24 * 60 * 60 * 1000,
     localBestScoreKey: 'crystal-match-vk-best-score',
     localSubmittedScoreKey: 'crystal-match-vk-endless-submitted-score',
     backendUrl: 'https://d5dl7q0eh16ojp505u1v.6brbn2wz.apigw.yandexcloud.net',
