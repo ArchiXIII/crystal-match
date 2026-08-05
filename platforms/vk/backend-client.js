@@ -9,6 +9,7 @@
       this.getLaunchParams = typeof source.getLaunchParams === 'function'
         ? source.getLaunchParams
         : () => '';
+      this.clientVersion = Math.max(0, Math.floor(Number(source.clientVersion) || 0));
       this.backoffUntil = 0;
       this.backoffDelay = 10000;
       this.backoffMax = 60000;
@@ -49,6 +50,7 @@
       const launchParams = String(this.getLaunchParams() || '');
       headers.Accept = 'application/json';
       if (launchParams) headers['X-VK-Launch-Params'] = launchParams;
+      if (this.clientVersion) headers['X-Client-Version'] = String(this.clientVersion);
       if (source.body !== undefined) headers['Content-Type'] = 'application/json';
       const timer = controller
         ? window.setTimeout(() => controller.abort(), this.timeout)

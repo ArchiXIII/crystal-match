@@ -798,35 +798,6 @@
       }
     },
 
-    loadPurchasePendingCheckAt() {
-      try {
-        return Math.max(0, Math.floor(Number(window.localStorage.getItem(
-          this.purchaseStateStorageKey(this.purchasePendingCheckLocalKey)
-        )) || 0));
-      } catch (error) {
-        return 0;
-      }
-    },
-
-    savePurchasePendingCheckAt(value) {
-      try {
-        window.localStorage.setItem(
-          this.purchaseStateStorageKey(this.purchasePendingCheckLocalKey),
-          String(Math.max(0, Math.floor(Number(value) || 0)))
-        );
-        return true;
-      } catch (error) {
-        return false;
-      }
-    },
-
-    hasPurchaseHistory() {
-      if (this.appliedPurchaseEventIds.length) return true;
-      if (this.cloudProgress && Array.isArray(this.cloudProgress.appliedPurchaseEventIds) &&
-          this.cloudProgress.appliedPurchaseEventIds.length) return true;
-      return this.loadLocalPurchaseEventIds().length > 0;
-    },
-
     async persistPurchaseEvents(coins, eventIds, grantedCoins) {
       if (!this.game || !this.isServerBackedPlayer()) return false;
       const value = Math.max(0, Math.floor(Number(coins) || 0));
@@ -864,13 +835,7 @@
       if (!this.purchaseAwaitingConfirmation) {
         this.purchaseAwaitingConfirmation = this.loadPurchaseAwaitingConfirmation();
       }
-      if (!this.purchaseAwaitingConfirmation &&
-          (source.source === 'boot' || source.source === 'shop')) {
-        if (!this.hasPurchaseHistory() ||
-            Date.now() - this.loadPurchasePendingCheckAt() < 24 * 60 * 60 * 1000) {
-          return Promise.resolve(false);
-        }
-      }
+      if (!this.purchaseAwaitingConfirmation && !source.afterPurchase) return Promise.resolve(false);
       if (this.purchaseEventsInFlight) {
         return this.purchaseEventsPromise || Promise.resolve(false);
       }
@@ -915,7 +880,6 @@
           }
           if (ackIds.length) this.purchaseAwaitingConfirmation = false;
           if (ackIds.length) this.savePurchaseAwaitingConfirmation(false);
-          this.savePurchasePendingCheckAt(Date.now());
           if (this.game.coinShopOpen) {
             this.game.coinShopError = (source.afterPurchase || this.purchaseAwaitingConfirmation) && !ackIds.length
               ? this.t('shop.processing')

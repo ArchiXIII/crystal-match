@@ -17,7 +17,6 @@
     features: config.features || {},
     storageKey: config.storageKey || 'crystalProgress',
     purchaseEventsLocalKey: config.purchaseEventsLocalKey || 'crystal-match-vk-purchase-events',
-    purchasePendingCheckLocalKey: config.purchasePendingCheckLocalKey || 'crystal-match-vk-purchase-check',
     purchaseAwaitingLocalKey: config.purchaseAwaitingLocalKey || 'crystal-match-vk-purchase-awaiting',
     localBestScoreKey: config.localBestScoreKey || 'crystal-match-vk-best-score',
     localSubmittedScoreKey: config.localSubmittedScoreKey || 'crystal-match-vk-endless-submitted-score',
@@ -48,11 +47,11 @@
     starsLeaderboardCacheAt: 0,
     starsLeaderboardCacheStars: 0,
     starsLeaderboardLoadPromise: null,
-    starsLeaderboardCacheTtl: 30 * 60 * 1000,
+      starsLeaderboardCacheTtl: 6 * 60 * 60 * 1000,
     endlessLeaderboardCache: null,
     endlessLeaderboardCacheAt: 0,
     endlessLeaderboardLoadPromise: null,
-    endlessLeaderboardCacheTtl: 30 * 60 * 1000,
+      endlessLeaderboardCacheTtl: 6 * 60 * 60 * 1000,
     rafId: 0,
     runtimeRestoreTimer: null,
     runtimeRecoveryProbeTimer: null,
@@ -101,9 +100,10 @@
       await this.resizeDesktopVkWindow();
       if (window.CrystalMatchVkBackendClient) {
         this.backendClient = new window.CrystalMatchVkBackendClient({
-          baseUrl: config.backendUrl,
-          timeout: 6000,
-          getLaunchParams: () => this.rawLaunchParams
+            baseUrl: config.backendUrl,
+            timeout: 6000,
+            clientVersion: config.backendClientVersion,
+            getLaunchParams: () => this.rawLaunchParams
         });
       }
     },
