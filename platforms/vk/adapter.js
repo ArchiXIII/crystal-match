@@ -497,6 +497,9 @@
         this.cloudProgress.appliedPurchaseEventIds = this.appliedPurchaseEventIds.slice();
         this.saveLocalPurchaseEventIds();
         this.lastStoredValue = stored.raw;
+        if (!this.isOkClient() && typeof this.retryPendingEndlessScore === 'function') {
+          this.retryPendingEndlessScore();
+        }
         return Object.assign({
           cloudDataLoaded: true,
           coinPurchaseTokens: []
@@ -754,6 +757,9 @@
       this.cloudProgress.endlessBestScore = value;
       this.saveLocalBestScore(value);
       this.markCloudDirty(450);
+      if (!this.isOkClient() && typeof this.retryPendingEndlessScore === 'function') {
+        this.retryPendingEndlessScore();
+      }
       return true;
     },
 
