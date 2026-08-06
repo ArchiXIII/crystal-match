@@ -19,10 +19,13 @@
       this.audio = options.audio || null;
       this.platformFeatures = Object.assign({
         nativeLeaderboard: false,
+        leaderboardButton: true,
         starsLeaderboard: true,
         xpLeaderboard: true,
         gameOverLeaderboard: true,
         endlessGameOverLeaderboard: true,
+        gameOverXpEarned: false,
+        compactGameOver: false,
         paidCoinPacks: true,
         developerGames: true,
         levelExitButton: false,
@@ -38,6 +41,7 @@
       this.settingsStorageKey = 'crystal-match-settings';
       this.saveCoinsExternal = typeof options.saveCoins === 'function' ? options.saveCoins : null;
       this.saveRankXpExternal = typeof options.saveRankXp === 'function' ? options.saveRankXp : null;
+      this.reportRankXpEarnedExternal = typeof options.reportRankXpEarned === 'function' ? options.reportRankXpEarned : null;
       this.saveDailyBonusExternal = typeof options.saveDailyBonus === 'function' ? options.saveDailyBonus : null;
       this.saveAdBonusExternal = typeof options.saveAdBonus === 'function' ? options.saveAdBonus : null;
       this.saveLevelProgressExternal = typeof options.saveLevelProgress === 'function' ? options.saveLevelProgress : null;
@@ -417,7 +421,9 @@
 
     awardRankXp(amount) {
       if (!Number.isFinite(amount) || amount <= 0) return;
-      this.rankXp += Math.floor(amount);
+      const value = Math.floor(amount);
+      this.rankXp += value;
+      if (this.reportRankXpEarnedExternal) this.reportRankXpEarnedExternal(value);
       this.saveRankXp(false);
     }
 

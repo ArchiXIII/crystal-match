@@ -20,6 +20,16 @@
     cloudSaveTimer: null,
     cloudSaveDueAt: 0,
     lastStoredValue: '',
+    adInFlight: false,
+    adActive: false,
+    adRestoreTimer: null,
+    interstitialCooldownMs: 3 * 60 * 1000,
+    interstitialLastShownKey: 'crystal-match-crazygames-interstitial-last-shown',
+    lastInterstitialShownAt: 0,
+    weeklyXpPending: 0,
+    weeklyXpSubmitTimer: null,
+    weeklyXpSubmitting: false,
+    weeklyXpSubmitIntervalMs: 30000,
 
     async initPlatform() {
       const source = window.CrazyGames && window.CrazyGames.SDK;
@@ -104,6 +114,107 @@
       } catch (error) {
         console.warn('[Crystal Match CrazyGames] Gameplay stop report failed');
       }
+    },
+
+    isRewardedAdAvailable() {
+      return !!(
+        this.sdkReady &&
+        this.sdk &&
+        this.sdk.ad &&
+        typeof this.sdk.ad.requestAd === 'function' &&
+        !this.adInFlight
+      );
+    },
+
+    restoreAfterAd() {
+      this.lastTime = 0;
+      if (this.resize) this.resize();
+      if (this.game && this.game.update) this.game.update(0);
+      if (this.renderer && this.renderer.render) {
+        const time = typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+        this.renderer.render(time);
+      }
+    },
+
+    scheduleAdRestore() {
+      if (this.adRestoreTimer) window.clearTimeout(this.adRestoreTimer);
+      this.adRestoreTimer = window.setTimeout(() => {
+        this.adRestoreTimer = null;
+        this.restoreAfterAd();
+      }, 0);
+    },
+
+    requestCrazyAd(type) {
+      const adModule = this.sdkReady && this.sdk && this.sdk.ad;
+      if (!adModule || typeof adModule.requestAd !== 'function' || this.adInFlight) {
+        return Promise.resolve(false);
+      }
+      this.adInFlight = true;
+      this.adActive = true;
+      this.beginPlatformOverlayAudioPause();
+      return new Promise((resolve) => {
+        let settled = false;
+        const finish = (shown) => {
+          if (settled) return;
+          settled = true;
+          this.adInFlight = false;
+          this.adActive = false;
+          this.endPlatformOverlayAudioPause();
+          resolve(!!shown);
+          this.scheduleAdRestore();
+        };
+        try {
+          adModule.requestAd(type, {
+            adStarted: () => {
+              this.adActive = true;
+              this.beginPlatformOverlayAudioPause();
+            },
+            adFinished: () => finish(true),
+            adError: () => finish(false)
+          });
+        } catch (error) {
+          console.warn('[Crystal Match CrazyGames] Ad request failed');
+          finish(false);
+        }
+      });
+    },
+
+    showRewardedAd() {
+      return this.requestCrazyAd('rewarded');
+    },
+
+    showInterstitialAd() {
+      let storedAt = 0;
+      try {
+        storedAt = Math.max(0, Math.floor(Number(
+          window.localStorage.getItem(this.interstitialLastShownKey)
+        ) || 0));
+      } catch (error) {}
+      const lastShownAt = Math.max(this.lastInterstitialShownAt, storedAt);
+      if (Date.now() - lastShownAt < this.interstitialCooldownMs) return Promise.resolve(false);
+      return this.requestCrazyAd('midgame').then((shown) => {
+        if (!shown) return false;
+        const shownAt = Date.now();
+        this.lastInterstitialShownAt = shownAt;
+        try {
+          window.localStorage.setItem(this.interstitialLastShownKey, String(shownAt));
+        } catch (error) {}
+        return true;
+      });
+    },
+
+    loop(time) {
+      const dt = Math.min(32, time - (this.lastTime || time));
+      this.lastTime = time;
+      if (!this.adActive) {
+        this.updateAdaptiveQuality(time);
+        this.game.update(dt);
+        this.syncPlatformGameplayState();
+        this.renderer.render(time);
+      }
+      requestAnimationFrame((nextTime) => this.loop(nextTime));
     },
 
     reportGameProgress(progress) {
@@ -339,6 +450,75 @@
       if (!this.cloudProgress) this.cloudProgress = {};
       this.cloudProgress.rankXp = Math.max(0, Math.floor(Number(rankXp) || 0));
       this.markCloudDirty(force ? 0 : 30000);
+      if (force) this.submitWeeklyXp();
+    },
+
+    reportRankXpEarned(amount) {
+      const value = Math.max(0, Math.floor(Number(amount) || 0));
+      if (!value) return false;
+      this.weeklyXpPending += value;
+      this.scheduleWeeklyXpSubmit();
+      return true;
+    },
+
+    scheduleWeeklyXpSubmit() {
+      if (this.weeklyXpSubmitTimer || this.weeklyXpSubmitting || !this.weeklyXpPending) return;
+      this.weeklyXpSubmitTimer = window.setTimeout(() => {
+        this.weeklyXpSubmitTimer = null;
+        this.submitWeeklyXp();
+      }, this.weeklyXpSubmitIntervalMs);
+    },
+
+    async encryptLeaderboardScore(score) {
+      const key = String(config.leaderboardEncryptionKey || '');
+      if (!key || !window.crypto || !window.crypto.subtle) return '';
+      const keySource = window.atob(key);
+      const keyBytes = new Uint8Array(keySource.length);
+      for (let i = 0; i < keySource.length; i += 1) keyBytes[i] = keySource.charCodeAt(i);
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const cryptoKey = await window.crypto.subtle.importKey(
+        'raw',
+        keyBytes,
+        { name: 'AES-GCM' },
+        false,
+        ['encrypt']
+      );
+      const payload = new TextEncoder().encode(String(score));
+      const encrypted = new Uint8Array(await window.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        cryptoKey,
+        payload
+      ));
+      const combined = new Uint8Array(iv.length + encrypted.length);
+      combined.set(iv);
+      combined.set(encrypted, iv.length);
+      let binary = '';
+      for (let i = 0; i < combined.length; i += 1) binary += String.fromCharCode(combined[i]);
+      return window.btoa(binary);
+    },
+
+    async submitWeeklyXp() {
+      const userModule = this.sdkReady && this.sdk && this.sdk.user;
+      if (this.weeklyXpSubmitting || !this.weeklyXpPending || !userModule || typeof userModule.submitScore !== 'function') {
+        return false;
+      }
+      window.clearTimeout(this.weeklyXpSubmitTimer);
+      this.weeklyXpSubmitTimer = null;
+      const value = this.weeklyXpPending;
+      this.weeklyXpSubmitting = true;
+      try {
+        const encryptedScore = await this.encryptLeaderboardScore(value);
+        if (!encryptedScore) throw new Error('Leaderboard encryption unavailable');
+        await Promise.resolve(userModule.submitScore({ encryptedScore, score: value }));
+        this.weeklyXpPending = Math.max(0, this.weeklyXpPending - value);
+        return true;
+      } catch (error) {
+        console.warn('[Crystal Match CrazyGames] Weekly XP submit failed');
+        return false;
+      } finally {
+        this.weeklyXpSubmitting = false;
+        if (this.weeklyXpPending) this.scheduleWeeklyXpSubmit();
+      }
     },
 
     saveCloudDailyBonus(dailyBonus, meta) {
@@ -410,6 +590,7 @@
     },
 
     flushCloudRankXp() {
+      this.submitWeeklyXp();
       return this.flushCloudProgress();
     },
 

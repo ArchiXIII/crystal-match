@@ -67,6 +67,7 @@
         audio: this.audio,
         saveCoins: this.adapterCallback('saveCloudCoins'),
         saveRankXp: this.adapterCallback('saveCloudRankXp'),
+        reportRankXpEarned: this.adapterCallback('reportRankXpEarned'),
         saveDailyBonus: this.adapterCallback('saveCloudDailyBonus'),
         saveAdBonus: this.adapterCallback('saveCloudAdBonus'),
         saveLevelProgress: this.adapterCallback('saveCloudLevelProgress'),

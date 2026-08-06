@@ -23,11 +23,22 @@
       ctx.fillRect(0, 0, this.width, this.height);
 
       const compact = this.width < 420 || this.height < 720;
+      const isLevelResult = this.game.gameMode === 'level';
+      const isLevelLost = isLevelResult && !this.game.levelWon;
+      const isLevelWon = isLevelResult && this.game.levelWon;
       const showLeaderboard = this.game.platformFeatures.gameOverLeaderboard !== false &&
         (this.game.gameMode === 'level' || this.game.platformFeatures.endlessGameOverLeaderboard !== false);
+      const compactGameOver = this.game.platformFeatures.compactGameOver === true;
+      const chapterTrophy = isLevelWon && this.game.lastChapterTrophyEarned !== null &&
+        this.game.lastChapterTrophyEarned !== undefined;
+      const compactHeight = isLevelResult
+        ? (chapterTrophy ? (compact ? 430 : 470) : (compact ? 390 : 420))
+        : (compact ? 280 : 310);
       const w = Math.min(compact ? 380 : 460, this.width - 28);
       const h = Math.min(
-        showLeaderboard ? (compact ? 540 : 620) : (compact ? 480 : 540),
+        compactGameOver
+          ? compactHeight
+          : (showLeaderboard ? (compact ? 540 : 620) : (compact ? 480 : 540)),
         this.height - 28
       );
       const x = Math.round((this.width - w) / 2);
@@ -40,9 +51,6 @@
 
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const isLevelResult = this.game.gameMode === 'level';
-      const isLevelLost = isLevelResult && !this.game.levelWon;
-      const isLevelWon = isLevelResult && this.game.levelWon;
       if (isLevelResult) {
         const levelNumber = this.game.currentLevel ? this.game.currentLevel.n : 1;
         ctx.fillStyle = '#ffe590';
@@ -74,7 +82,12 @@
         ctx.fillStyle = '#ffd77a';
         ctx.font = '800 ' + (compact ? 22 : 26) + 'px CrystalUI, Arial';
         ctx.fillText(this.t('gameOver.score', { score: String(this.game.score).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') }), x + w / 2, y + (compact ? 88 : 98));
-        contentY = y + (compact ? 122 : 136);
+        if (this.game.platformFeatures.gameOverXpEarned === true) {
+          this.drawGameOverXpEarned(ctx, x + w / 2, y + (compact ? 116 : 128), compact);
+          contentY = y + (compact ? 142 : 158);
+        } else {
+          contentY = y + (compact ? 122 : 136);
+        }
       }
       if (this.game.roundNewRank) {
         const rankH = compact ? 32 : 36;
@@ -144,6 +157,9 @@
           ctx.fillStyle = '#ffd77a';
           ctx.font = '800 ' + (compact ? 15 : 17) + 'px CrystalUI, Arial';
           ctx.fillText(this.t('levels.movesLeft', { moves: Math.max(0, this.game.levelMovesLeft || 0) }), x + w / 2, movesY);
+          if (this.game.platformFeatures.gameOverXpEarned === true) {
+            this.drawGameOverXpEarned(ctx, x + w / 2, movesY + (compact ? 23 : 27), compact);
+          }
           if (showLeaderboard) {
             const levelBoardY = movesY + (compact ? 22 : 27);
             const listX = x + 22;
@@ -175,6 +191,9 @@
           ctx.fillStyle = '#ffd77a';
           ctx.font = '800 ' + (compact ? 17 : 20) + 'px CrystalUI, Arial';
           ctx.fillText(this.t('gameOver.movesEnded'), x + w / 2, contentY + 36);
+          if (this.game.platformFeatures.gameOverXpEarned === true) {
+            this.drawGameOverXpEarned(ctx, x + w / 2, contentY + (compact ? 65 : 70), compact);
+          }
         }
         contentY += compact ? 112 : 136;
       } else if (showLeaderboard) {
@@ -278,6 +297,19 @@
         }
       }
 
+      ctx.restore();
+    };
+
+  Renderer.prototype.drawGameOverXpEarned = function (ctx, centerX, centerY, compact) {
+      const xp = Math.max(0, Math.floor(Number(this.game.score) || 0));
+      ctx.save();
+      ctx.fillStyle = '#ffe590';
+      ctx.shadowColor = 'rgba(246, 189, 76, 0.58)';
+      ctx.shadowBlur = this.shadow(10);
+      ctx.font = '900 ' + (compact ? 18 : 21) + 'px CrystalUI, Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('+' + xp + 'XP!', centerX, centerY);
       ctx.restore();
     };
 

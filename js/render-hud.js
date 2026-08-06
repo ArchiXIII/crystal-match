@@ -93,7 +93,9 @@
       const pillW = Math.round(Math.max(minPillW, Math.min(maxPillW, ctx.measureText(coinText).width + plusSize + (compact ? 67 : 84))));
       const buttonInset = tight ? 8 : 14;
       const clusterGap = compact ? 6 : 8;
-      const normalScoreX = this.width - l.sidePad - buttonInset - pillW - small * 2 - clusterGap * 2;
+      const showLeaderboardButton = this.game.platformFeatures.leaderboardButton !== false;
+      const clusterButtonCount = showLeaderboardButton ? 2 : 1;
+      const normalScoreX = this.width - l.sidePad - buttonInset - pillW - small * clusterButtonCount - clusterGap * clusterButtonCount;
       const normalProfileRight = profileTextX + (compact ? (tight ? 124 : 116) : 154);
       const normalRightClusterLeft = normalScoreX - 12;
       const stackedHud = this.width < 560 || normalRightClusterLeft - normalProfileRight < 96;
@@ -130,9 +132,12 @@
       const muteX = this.width - l.sidePad - small - buttonInset;
       this.soundButtonRect = { x: muteX, y: buttonY, w: small, h: small };
       this.circleButton(ctx, muteX + small / 2, buttonY + small / 2, small / 2, this.game.soundOn ? 'soundOn' : 'soundOff');
-      const leaderboardX = muteX - small - clusterGap;
-      this.leaderboardButtonRect = { x: leaderboardX, y: buttonY, w: small, h: small };
-      this.circleButton(ctx, leaderboardX + small / 2, buttonY + small / 2, small / 2, 'leaderboard');
+      this.leaderboardButtonRect = null;
+      if (showLeaderboardButton) {
+        const leaderboardX = muteX - small - clusterGap;
+        this.leaderboardButtonRect = { x: leaderboardX, y: buttonY, w: small, h: small };
+        this.circleButton(ctx, leaderboardX + small / 2, buttonY + small / 2, small / 2, 'leaderboard');
+      }
 
       if (!this.game.menuOpen) {
         const levelMode = this.game.gameMode === 'level';
