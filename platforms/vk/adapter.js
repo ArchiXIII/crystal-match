@@ -62,6 +62,28 @@
     rewardCoinSyncTimer: null,
     runtimeRecoveryEventsBound: false,
 
+    waitForPlatform(promise, timeoutMs, code) {
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const timer = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error(code || 'VK_BRIDGE_TIMEOUT'));
+        }, Math.max(500, Math.floor(Number(timeoutMs) || 3000)));
+        Promise.resolve(promise).then((value) => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timer);
+          resolve(value);
+        }, (error) => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timer);
+          reject(error);
+        });
+      });
+    },
+
     warnPlatformIssue(label, error) {
       const message = error && typeof error.message === 'string' && /^(BACKEND|VK|OK)_/.test(error.message)
         ? error.message
@@ -71,8 +93,13 @@
         : null;
       const detail = error && {
         type: error.error_type || error.name || '',
-        code: error.safeCode || error.status || (errorData && errorData.error_code) || '',
-        reason: String((errorData && (errorData.error_reason || errorData.error_msg)) || message || '').slice(0, 160)
+        code: error.safeCode || error.backendCode || error.status || (errorData && errorData.error_code) || '',
+        reason: String(
+          (errorData && (errorData.error_reason || errorData.error_msg)) ||
+          error.backendCode ||
+          message ||
+          ''
+        ).slice(0, 160)
       };
       console.warn('[Crystal Match ' + (this.isOkClient() ? 'OK' : 'VK') + '] ' + label, detail || 'UNKNOWN_ERROR');
     },
@@ -87,18 +114,24 @@
         return;
       }
       try {
-        await this.vkBridge.send('VKWebAppInit');
+        await this.waitForPlatform(this.vkBridge.send('VKWebAppInit'), 3000, 'VK_INIT_TIMEOUT');
       } catch (error) {
+        this.warnPlatformIssue('Platform init failed', error);
         this.vkBridge = null;
         return;
       }
       try {
-        this.vkLaunchParams = await this.vkBridge.send('VKWebAppGetLaunchParams');
+        this.vkLaunchParams = await this.waitForPlatform(
+          this.vkBridge.send('VKWebAppGetLaunchParams'),
+          2500,
+          'VK_LAUNCH_PARAMS_TIMEOUT'
+        );
       } catch (error) {
+        this.warnPlatformIssue('Launch params read failed', error);
         this.vkLaunchParams = null;
       }
       this.features.nativeEndlessLeaderboard = false;
-      await this.resizeDesktopVkWindow();
+      this.resizeDesktopVkWindow();
       if (window.CrystalMatchVkBackendClient) {
         this.backendClient = new window.CrystalMatchVkBackendClient({
             baseUrl: config.backendUrl,
@@ -132,7 +165,11 @@
       if (!this.vkBridge || (platform !== 'desktop_web' && platform !== 'desktop_web_ok')) return false;
       let platformConfig;
       try {
-        platformConfig = await this.vkBridge.send('VKWebAppGetConfig');
+        platformConfig = await this.waitForPlatform(
+          this.vkBridge.send('VKWebAppGetConfig'),
+          2500,
+          'VK_CONFIG_TIMEOUT'
+        );
       } catch (error) {
         this.warnPlatformIssue('Desktop config read failed', error);
         return false;
@@ -143,10 +180,14 @@
         return false;
       }
       try {
-        await this.vkBridge.send('VKWebAppResizeWindow', {
-          width: platform === 'desktop_web_ok' ? 1000 : 911,
-          height: Math.max(1, Math.floor(viewportHeight - 100))
-        });
+        await this.waitForPlatform(
+          this.vkBridge.send('VKWebAppResizeWindow', {
+            width: platform === 'desktop_web_ok' ? 1000 : 911,
+            height: Math.max(1, Math.floor(viewportHeight - 100))
+          }),
+          2500,
+          'VK_RESIZE_TIMEOUT'
+        );
         return true;
       } catch (error) {
         this.warnPlatformIssue('Desktop window resize failed', error);
@@ -270,8 +311,14 @@
       this.vkUser = null;
       if (!this.vkBridge) return;
       try {
-        this.vkUser = await this.vkBridge.send('VKWebAppGetUserInfo');
-      } catch (error) {}
+        this.vkUser = await this.waitForPlatform(
+          this.vkBridge.send('VKWebAppGetUserInfo'),
+          3000,
+          'VK_USER_INFO_TIMEOUT'
+        );
+      } catch (error) {
+        this.warnPlatformIssue('Player read failed', error);
+      }
     },
 
     detectLanguage() {
@@ -476,7 +523,11 @@
 
     async readStoredProgress() {
       if (!this.vkBridge) return null;
-      const response = await this.vkBridge.send('VKWebAppStorageGet', { keys: [this.storageKey] });
+      const response = await this.waitForPlatform(
+        this.vkBridge.send('VKWebAppStorageGet', { keys: [this.storageKey] }),
+        3000,
+        'VK_STORAGE_READ_TIMEOUT'
+      );
       const entries = response && Array.isArray(response.keys) ? response.keys : [];
       const entry = entries.find((item) => item && item.key === this.storageKey);
       const raw = entry ? String(entry.value || '') : '';

@@ -46,6 +46,7 @@
         started = true;
         CrystalMatchPlatform.boot();
       };
+      window.setTimeout(boot, 2500);
       if (!document.fonts || typeof document.fonts.load !== 'function') {
         boot();
         return;
