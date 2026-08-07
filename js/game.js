@@ -26,6 +26,8 @@
         endlessGameOverLeaderboard: true,
         gameOverXpEarned: false,
         compactGameOver: false,
+        adsEnabled: true,
+        freeBasicRewards: false,
         paidCoinPacks: true,
         developerGames: true,
         levelExitButton: false,
@@ -574,7 +576,7 @@
     }
 
     goToMainMenuWithAd() {
-      if (!this.gameOver || !this.showInterstitialAdExternal) {
+      if (!this.gameOver || this.platformFeatures.adsEnabled === false || !this.showInterstitialAdExternal) {
         return this.goToMainMenu();
       }
       if (this.interstitialPending) return false;

@@ -118,6 +118,7 @@
 
     isRewardedAdAvailable() {
       return !!(
+        config.features.adsEnabled !== false &&
         this.sdkReady &&
         this.sdk &&
         this.sdk.ad &&
@@ -147,6 +148,7 @@
     },
 
     requestCrazyAd(type) {
+      if (config.features.adsEnabled === false) return Promise.resolve(false);
       const adModule = this.sdkReady && this.sdk && this.sdk.ad;
       if (!adModule || typeof adModule.requestAd !== 'function' || this.adInFlight) {
         return Promise.resolve(false);

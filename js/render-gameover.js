@@ -254,7 +254,10 @@
         this.drawGameOverGoldButton(ctx, buttonX, restartY, buttonW, buttonH, this.t('gameOver.restart'), compact);
         if (canAdContinue) {
           this.levelContinueAdButtonRect = { x: buttonX, y: adButtonY, w: buttonW, h: buttonH };
-          this.drawGameOverGoldButton(ctx, buttonX, adButtonY, buttonW, buttonH, this.t('levels.continueAd'), compact);
+          const continueLabel = this.game.platformFeatures.freeBasicRewards === true
+            ? this.t('levels.continueFree')
+            : this.t('levels.continueAd');
+          this.drawGameOverGoldButton(ctx, buttonX, adButtonY, buttonW, buttonH, continueLabel, compact);
         }
         this.mainMenuButtonRect = { x: buttonX, y: mainY, w: buttonW, h: buttonH };
         this.drawGameOverGoldButton(ctx, buttonX, mainY, buttonW, buttonH, this.t('menu.main'), compact);
@@ -272,7 +275,10 @@
         const developerGames = this.game.platformFeatures.developerGames !== false;
         if (canAdContinue) {
           this.levelContinueAdButtonRect = { x: buttonX, y: adButtonY, w: buttonW, h: buttonH };
-          this.drawGameOverGoldButton(ctx, buttonX, adButtonY, buttonW, buttonH, this.t('levels.continueAd'), compact);
+          const continueLabel = this.game.platformFeatures.freeBasicRewards === true
+            ? this.t('levels.continueFree')
+            : this.t('levels.continueAd');
+          this.drawGameOverGoldButton(ctx, buttonX, adButtonY, buttonW, buttonH, continueLabel, compact);
         }
         const mainMenuY = developerGames ? buttonY : secondaryY;
         this.mainMenuButtonRect = { x: buttonX, y: mainMenuY, w: buttonW, h: buttonH };

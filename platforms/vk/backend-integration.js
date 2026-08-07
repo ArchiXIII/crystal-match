@@ -166,7 +166,7 @@
 
     endlessLeaderboardStorageKey() {
       const syncKey = this.progressLeaderboardSyncKey();
-      return syncKey ? syncKey.replace('-stars-submitted-', '-endless-cache-') : '';
+      return syncKey ? syncKey.replace('-stars-submitted-', '-endless-cache-v2-') : '';
     },
 
     loadStoredEndlessLeaderboard() {
@@ -431,7 +431,7 @@
           return this.vkBridge.send('VKWebAppCallAPIMethod', {
             method: 'apps.getLeaderboard',
             params: {
-              type: 'points',
+              type: 'score',
               global: 1,
               extended: 1,
               access_token: token,

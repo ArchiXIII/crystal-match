@@ -96,6 +96,7 @@
 
   Renderer.prototype.drawCoinShopAdReward = function (ctx, x, y, w, h, compact) {
       const info = this.game.adRewardInfo ? this.game.adRewardInfo() : { reward: 5000, available: false, pending: false, remainingMs: 0 };
+      const freeReward = this.game.platformFeatures.freeBasicRewards === true;
       this.coinShopAdRect = { x, y, w, h };
       ctx.save();
       this.roundRect(ctx, x, y, w, h, 14);
@@ -112,32 +113,35 @@
       ctx.lineWidth = info.available ? 1.6 : 1.1;
       ctx.stroke();
 
-      const iconR = compact ? 12 : 14;
-      const iconX = x + 24;
-      const iconY = y + h / 2;
-      ctx.save();
-      ctx.strokeStyle = info.available ? '#7af2ff' : 'rgba(255, 244, 214, 0.5)';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(iconX - iconR * 0.45, iconY - iconR * 0.48);
-      ctx.lineTo(iconX + iconR * 0.5, iconY);
-      ctx.lineTo(iconX - iconR * 0.45, iconY + iconR * 0.48);
-      ctx.closePath();
-      ctx.stroke();
-      ctx.restore();
+      if (!freeReward) {
+        const iconR = compact ? 12 : 14;
+        const iconX = x + 24;
+        const iconY = y + h / 2;
+        ctx.save();
+        ctx.strokeStyle = info.available ? '#7af2ff' : 'rgba(255, 244, 214, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(iconX - iconR * 0.45, iconY - iconR * 0.48);
+        ctx.lineTo(iconX + iconR * 0.5, iconY);
+        ctx.lineTo(iconX - iconR * 0.45, iconY + iconR * 0.48);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+      }
 
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       ctx.fillStyle = info.available ? '#fff4d6' : 'rgba(255, 244, 214, 0.58)';
       ctx.font = '800 ' + (compact ? 13 : 15) + 'px CrystalUI, Arial';
-      ctx.fillText(this.t('ad.reward.title'), x + 44, y + h * 0.34, w * 0.48);
+      const textX = x + (freeReward ? 18 : 44);
+      ctx.fillText(this.t(freeReward ? 'bonus.reward.title' : 'ad.reward.title'), textX, y + h * 0.34, w * 0.48);
       ctx.fillStyle = info.available ? '#f6bd4c' : 'rgba(246, 189, 76, 0.58)';
       ctx.font = '800 ' + (compact ? 16 : 18) + 'px CrystalUI, Arial';
       const rewardText = this.t('ad.reward.action');
-      ctx.fillText(rewardText, x + 44, y + h * 0.68);
+      ctx.fillText(rewardText, textX, y + h * 0.68);
       const rewardW = ctx.measureText(rewardText).width;
-      this.drawCoin(ctx, x + 44 + rewardW + 14, y + h * 0.68 - 1, compact ? 8 : 9);
+      this.drawCoin(ctx, textX + rewardW + 14, y + h * 0.68 - 1, compact ? 8 : 9);
 
       const buttonW = compact ? 104 : 118;
       const buttonH = compact ? 30 : 32;
@@ -157,7 +161,7 @@
       ctx.textAlign = 'center';
       const label = info.pending
         ? this.t('ad.reward.pending')
-        : (info.available ? this.t('ad.reward.ready') : this.formatDuration(info.remainingMs));
+        : (info.available ? this.t(freeReward ? 'bonus.reward.ready' : 'ad.reward.ready') : this.formatDuration(info.remainingMs));
       ctx.font = '800 ' + (info.available || info.pending ? (compact ? 10 : 11) : (compact ? 15 : 17)) + 'px CrystalUI, Arial';
       ctx.fillText(label, buttonX + buttonW / 2, buttonY + buttonH / 2 + 1);
       ctx.restore();

@@ -31,8 +31,15 @@
       const mobileMenu = this.width < 620;
       const mobileLift = mobileMenu ? (menuTight ? 40 : 52) : 0;
       const titleShift = mobileMenu ? (menuTight ? 24 : 34) : 0;
-      const titleBox = this.drawMenuTitle(ctx, this.t('menu.title'), cx, cy - (menuTight ? 118 : 128) + titleShift, Math.min(this.width - 36, l.boardWidth + 18));
       const developerGap = mobileMenu ? 20 : 28;
+      const titleBox = this.drawMenuTitle(
+        ctx,
+        this.t('menu.title'),
+        cx,
+        cy - (menuTight ? 118 : 128) + titleShift,
+        Math.min(this.width - 36, l.boardWidth + 18),
+        overlayY + 18 + developerGap
+      );
       const developerY = Math.max(overlayY + 18, titleBox.top - developerGap);
       ctx.fillStyle = '#ffe590';
       ctx.font = '800 16px CrystalUI, Arial';
@@ -161,7 +168,7 @@
       ctx.restore();
     };
 
-  Renderer.prototype.drawMenuTitle = function (ctx, title, cx, y, maxWidth) {
+  Renderer.prototype.drawMenuTitle = function (ctx, title, cx, y, maxWidth, minTop) {
       let fontSize = Math.max(28, Math.min(56, this.width * 0.078));
       const words = title.split(' ');
       const half = Math.ceil(words.length / 2);
@@ -178,7 +185,9 @@
       }
       ctx.font = '800 ' + fontSize + 'px CrystalUI, Arial';
       const lineHeight = fontSize * 1.02;
-      const startY = y - (lines.length - 1) * lineHeight * 0.5;
+      let startY = y - (lines.length - 1) * lineHeight * 0.5;
+      const top = startY - fontSize * 0.5;
+      if (Number.isFinite(minTop) && top < minTop) startY += minTop - top;
       lines.slice(0, 2).forEach((item, index) => {
         ctx.fillText(item, cx, startY + index * lineHeight);
       });

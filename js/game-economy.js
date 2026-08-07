@@ -196,7 +196,7 @@
       const rewardIndex = Math.min(rewards.length - 1, Math.max(0, nextStreak - 1));
       return {
         available: !claimedToday,
-        adAvailable: claimedToday && !adClaimedToday && !this.adBonusPending,
+        adAvailable: this.platformFeatures.adsEnabled !== false && claimedToday && !adClaimedToday && !this.adBonusPending,
         adClaimedToday,
         adPending: this.adBonusPending,
         claimedToday,
@@ -262,6 +262,12 @@
   Game.prototype.claimAdReward = function (source) {
       const info = this.adRewardInfo();
       if (!info.available) return false;
+      if (this.platformFeatures.freeBasicRewards === true) {
+        this.adBonus = { lastClaimAt: Date.now() };
+        this.addCoins(info.reward, source || null, false, { immediate: true });
+        this.saveAdBonus({ immediate: true });
+        return true;
+      }
       if (!this.showRewardedAdExternal) {
         this.coinShopError = this.t('ad.unavailable');
         return false;

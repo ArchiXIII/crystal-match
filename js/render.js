@@ -392,9 +392,10 @@
       }
       const goalY = goalSide ? board.boardY : Math.round(safeTop + hudHeight + board.verticalGap);
       const mobileLevelExitRow = !!board.mobileLevelExitRow;
+      const attachBoostersToBoard = platformLayout.attachBoostersToBoard === true;
       const boosterY = mobileLevelExitRow
         ? board.boardY + board.boardHeight + board.verticalGap
-        : (tightPortrait
+        : (tightPortrait && !attachBoostersToBoard
           ? Math.max(board.boardY + board.boardHeight + board.verticalGap, this.height - safeBottom - boosterHeight)
           : board.boardY + board.boardHeight + board.verticalGap);
       return {

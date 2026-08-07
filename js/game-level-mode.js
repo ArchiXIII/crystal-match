@@ -187,7 +187,7 @@
   Game.prototype.startNextLevel = function () {
     const current = this.currentLevel ? this.currentLevel.n : this.selectedLevelNumber;
     const next = Math.max(1, Math.floor(Number(current) || 1) + 1);
-    const shouldShowAd = current >= 10 && !!this.showInterstitialAdExternal;
+    const shouldShowAd = this.platformFeatures.adsEnabled !== false && current >= 10 && !!this.showInterstitialAdExternal;
     if (!shouldShowAd) return this.startLevel(next);
     if (this.nextLevelAdPending) return false;
     this.nextLevelAdPending = true;
@@ -391,45 +391,56 @@
   };
 
   Game.prototype.canContinueLevelWithAd = function () {
+    const freeReward = this.platformFeatures.freeBasicRewards === true;
     return this.gameMode === 'level' &&
       this.gameOver &&
       !this.levelWon &&
       !this.levelContinueAdUsed &&
       !this.levelContinueAdPending &&
       !this.levelSurrendered &&
-      !!this.showRewardedAdExternal &&
-      (!this.isRewardedAdAvailableExternal || this.isRewardedAdAvailableExternal());
+      (freeReward || (
+        !!this.showRewardedAdExternal &&
+        (!this.isRewardedAdAvailableExternal || this.isRewardedAdAvailableExternal())
+      ));
   };
 
   Game.prototype.continueLevelWithAd = function () {
     if (!this.canContinueLevelWithAd()) return false;
+    if (this.platformFeatures.freeBasicRewards === true) {
+      this.grantLevelContinueMoves();
+      return true;
+    }
     this.levelContinueAdPending = true;
     Promise.resolve(this.showRewardedAdExternal())
       .then((rewarded) => {
         if (!rewarded) return;
-        this.levelContinueAdUsed = true;
-        this.levelExtraMovesGranted += 5;
-        this.levelContinueAdPending = false;
-        this.levelMovesLeft = 5;
-        this.gameOver = false;
-        this.levelWon = false;
-        this.levelSurrendered = false;
-        this.levelResult = '';
-        this.noMoves = false;
-        this.activeBooster = null;
-        this.selected = null;
-        this.hintMove = null;
-        this.finishedAt = null;
-        this.state = 'idle';
-        this.notePlayerAction();
-        if (!this.findHintMove()) this.reshuffleLevelBoard();
-        this.checkMoveAvailability();
+        this.grantLevelContinueMoves();
       })
       .catch(() => {})
       .finally(() => {
         this.levelContinueAdPending = false;
       });
     return true;
+  };
+
+  Game.prototype.grantLevelContinueMoves = function () {
+    this.levelContinueAdUsed = true;
+    this.levelExtraMovesGranted += 5;
+    this.levelContinueAdPending = false;
+    this.levelMovesLeft = 5;
+    this.gameOver = false;
+    this.levelWon = false;
+    this.levelSurrendered = false;
+    this.levelResult = '';
+    this.noMoves = false;
+    this.activeBooster = null;
+    this.selected = null;
+    this.hintMove = null;
+    this.finishedAt = null;
+    this.state = 'idle';
+    this.notePlayerAction();
+    if (!this.findHintMove()) this.reshuffleLevelBoard();
+    this.checkMoveAvailability();
   };
 
 })();
