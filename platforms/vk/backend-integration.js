@@ -412,18 +412,6 @@
       } catch (error) {
         this.warnPlatformIssue('Endless score submit failed', error);
       }
-      const now = Date.now();
-      if (!this.endlessLeaderboardCache) {
-        const stored = this.loadStoredEndlessLeaderboard();
-        if (stored) {
-          this.endlessLeaderboardCache = stored.entries;
-          this.endlessLeaderboardCacheAt = stored.savedAt;
-        }
-      }
-      if (!force && this.endlessLeaderboardCache &&
-          now - this.endlessLeaderboardCacheAt < this.endlessLeaderboardCacheTtl) {
-        return this.endlessLeaderboardCache.slice();
-      }
       if (this.endlessLeaderboardLoadPromise) return this.endlessLeaderboardLoadPromise;
       try {
         this.endlessLeaderboardLoadPromise = this.getVkApiToken().then((token) => {
@@ -442,7 +430,6 @@
           const entries = this.mapVkEndlessLeaderboard(response).filter((entry) => entry.rank <= 10 || entry.isPlayer);
           this.endlessLeaderboardCache = entries;
           this.endlessLeaderboardCacheAt = Date.now();
-          this.saveStoredEndlessLeaderboard(entries);
           return entries.slice();
         }).finally(() => {
           this.endlessLeaderboardLoadPromise = null;
