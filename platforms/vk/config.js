@@ -27,6 +27,7 @@
       xpLeaderboard: false,
       gameOverLeaderboard: true,
       endlessGameOverLeaderboard: true,
+      mainMenuBeforeInterstitial: true,
       paidCoinPacks: true,
       developerGames: false,
       levelExitButton: true,

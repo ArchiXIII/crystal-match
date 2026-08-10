@@ -579,12 +579,16 @@
       if (!this.gameOver || this.platformFeatures.adsEnabled === false || !this.showInterstitialAdExternal) {
         return this.goToMainMenu();
       }
-      if (this.interstitialPending) return false;
+      const enterMenuFirst = this.platformFeatures.mainMenuBeforeInterstitial === true;
+      if (this.interstitialPending) return enterMenuFirst ? this.goToMainMenu() : false;
+      if (enterMenuFirst) this.goToMainMenu();
       this.interstitialPending = true;
-      Promise.resolve(this.showInterstitialAdExternal())
+      Promise.resolve()
+        .then(() => this.showInterstitialAdExternal())
+        .catch(() => false)
         .finally(() => {
           this.interstitialPending = false;
-          this.goToMainMenu();
+          if (!enterMenuFirst) this.goToMainMenu();
         });
       return true;
     }
