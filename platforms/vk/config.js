@@ -14,8 +14,8 @@
     backendUrl: 'https://d5dl7q0eh16ojp505u1v.6brbn2wz.apigw.yandexcloud.net',
     apiVersion: '5.199',
     layout: {
-      sideGoalMinWidth: 780,
-      sideGoalMinHeight: 540,
+      sideGoalMinWidth: 720,
+      sideGoalMinHeight: 460,
       desktopSidePadMax: 24,
       reserveSideGoalColumn: true,
       mobileLevelExitRow: true
