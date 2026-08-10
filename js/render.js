@@ -359,9 +359,14 @@
         const boardWidth = cell * this.game.columns;
         const boardHeight = cell * this.game.rows;
         const groupWidth = boardWidth + reservedSideWidth;
+        const centeredBoardX = (this.width - boardWidth) / 2;
+        const sideBoardMinX = sidePad + reservedSideWidth;
+        const sideBoardMaxX = this.width - sidePad - boardWidth;
         const boardX = reserveSideGoalColumn && sideGoal
-          ? Math.round((this.width - groupWidth) / 2 + reservedSideWidth)
-          : Math.round((this.width - boardWidth) / 2);
+          ? Math.round(sideBoardMinX <= sideBoardMaxX
+            ? Math.max(sideBoardMinX, Math.min(sideBoardMaxX, centeredBoardX))
+            : (this.width - groupWidth) / 2 + reservedSideWidth)
+          : Math.round(centeredBoardX);
         const slack = Math.max(0, availableBoardHeight - boardHeight);
         const boardY = Math.round(boardYBase + slack * 0.5);
         return { goalHeight, cell, boardWidth, boardHeight, boardX, boardY, verticalGap, mobileLevelExitRow };
