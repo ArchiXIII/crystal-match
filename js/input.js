@@ -127,6 +127,13 @@
         this.reset();
         return;
       }
+      const levelRewardDoubleAdButton = this.renderer.pointToLevelRewardDoubleAdButton && this.renderer.pointToLevelRewardDoubleAdButton(event.clientX, event.clientY);
+      if (levelRewardDoubleAdButton) {
+        const started = this.game.doubleLevelRewardWithAd && this.game.doubleLevelRewardWithAd();
+        this.game.playSound(started ? 'button' : 'swapError');
+        this.reset();
+        return;
+      }
       const restartLevelButton = this.renderer.pointToRestartLevelButton && this.renderer.pointToRestartLevelButton(event.clientX, event.clientY);
       if (restartLevelButton) {
         const restarted = this.game.restartCurrentLevel && this.game.restartCurrentLevel();

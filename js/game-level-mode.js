@@ -164,6 +164,10 @@
     this.levelResult = '';
     this.pendingLevelWin = false;
     this.pendingLevelReward = 0;
+    this.levelRewardDoubleAmount = 0;
+    this.levelRewardDoubleEligible = false;
+    this.levelRewardDoubleUsed = false;
+    this.levelRewardDoublePending = false;
     this.levelContinueAdUsed = false;
     this.levelContinueAdPending = false;
     this.levelSurrendered = false;
@@ -311,7 +315,12 @@
     this.levelResult = won ? 'won' : 'lost';
     this.gameOver = true;
     if (won && this.currentLevel) {
+      const previousStars = this.levelStarsFor(this.currentLevel.n);
       const levelReward = Math.max(0, Math.floor(Number(this.pendingLevelReward || (this.currentGoal && this.currentGoal.reward) || 0)));
+      this.levelRewardDoubleAmount = levelReward;
+      this.levelRewardDoubleEligible = this.platformFeatures.levelRewardDoubleAd === true && previousStars <= 0 && levelReward > 0;
+      this.levelRewardDoubleUsed = false;
+      this.levelRewardDoublePending = false;
       if (levelReward > 0) {
         this.addCoins(levelReward, { kind: 'levelWinStars' }, true, { immediate: true });
         this.pendingLevelReward = 0;
@@ -320,7 +329,6 @@
       const key = String(this.currentLevel.n);
       const chapter = Math.max(0, Math.floor((this.currentLevel.n - 1) / 10));
       const beforeChapterStars = this.levelChapterStarInfo ? this.levelChapterStarInfo(chapter) : { earned: 0, max: 0 };
-      const previousStars = this.levelStarsFor(this.currentLevel.n);
       this.lastLevelStarsEarned = earnedStars;
       this.lastChapterTrophyEarned = null;
       if (earnedStars > previousStars) {
@@ -342,6 +350,10 @@
       this.submitStars();
     } else {
       this.pendingLevelReward = 0;
+      this.levelRewardDoubleAmount = 0;
+      this.levelRewardDoubleEligible = false;
+      this.levelRewardDoubleUsed = false;
+      this.levelRewardDoublePending = false;
       this.lastLevelStarsEarned = 0;
       this.lastChapterTrophyEarned = null;
     }
@@ -402,6 +414,38 @@
         !!this.showRewardedAdExternal &&
         (!this.isRewardedAdAvailableExternal || this.isRewardedAdAvailableExternal())
       ));
+  };
+
+  Game.prototype.shouldShowLevelRewardDoubleAd = function () {
+    return this.gameMode === 'level' &&
+      this.gameOver &&
+      this.levelWon &&
+      this.platformFeatures.levelRewardDoubleAd === true &&
+      this.levelRewardDoubleEligible &&
+      !this.levelRewardDoubleUsed &&
+      this.levelRewardDoubleAmount > 0 &&
+      !!this.showRewardedAdExternal &&
+      (!this.isRewardedAdAvailableExternal || this.isRewardedAdAvailableExternal());
+  };
+
+  Game.prototype.doubleLevelRewardWithAd = function () {
+    if (!this.shouldShowLevelRewardDoubleAd() || this.levelRewardDoublePending) return false;
+    const levelNumber = this.currentLevel ? this.currentLevel.n : 0;
+    const reward = this.levelRewardDoubleAmount;
+    this.levelRewardDoublePending = true;
+    Promise.resolve(this.showRewardedAdExternal())
+      .then((rewarded) => {
+        if (!rewarded || this.levelRewardDoubleUsed || !this.gameOver || !this.levelWon ||
+          !this.currentLevel || this.currentLevel.n !== levelNumber) return;
+        this.levelRewardDoubleUsed = true;
+        this.levelRewardDoubleEligible = false;
+        this.addCoins(reward, { kind: 'levelWinRewardDouble' }, true, { immediate: true });
+      })
+      .catch(() => {})
+      .finally(() => {
+        this.levelRewardDoublePending = false;
+      });
+    return true;
   };
 
   Game.prototype.continueLevelWithAd = function () {

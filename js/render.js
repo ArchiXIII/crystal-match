@@ -73,6 +73,7 @@
       this.restartLevelButtonRect = null;
       this.nextLevelButtonRect = null;
       this.levelContinueAdButtonRect = null;
+      this.levelRewardDoubleAdButtonRect = null;
       this.leaderboardButtonRect = null;
       this.leaderboardCloseRect = null;
       this.leaderboardTabRects = [];

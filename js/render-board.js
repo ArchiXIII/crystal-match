@@ -1059,7 +1059,7 @@
           y: l.goalY + l.goalHeight * 0.5
         };
       }
-      if (source.kind === 'levelWinStars' && this.levelWinStarsSource) {
+      if ((source.kind === 'levelWinStars' || source.kind === 'levelWinRewardDouble') && this.levelWinStarsSource) {
         return {
           x: this.levelWinStarsSource.x,
           y: this.levelWinStarsSource.y

@@ -28,6 +28,7 @@
       gameOverLeaderboard: true,
       endlessGameOverLeaderboard: true,
       mainMenuBeforeInterstitial: true,
+      levelRewardDoubleAd: true,
       paidCoinPacks: true,
       developerGames: false,
       levelExitButton: true,

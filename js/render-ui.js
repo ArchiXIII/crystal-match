@@ -842,6 +842,15 @@
       return x >= button.x && x <= button.x + button.w && y >= button.y && y <= button.y + button.h ? button : null;
   };
 
+  Renderer.prototype.pointToLevelRewardDoubleAdButton = function (clientX, clientY) {
+      if (!this.levelRewardDoubleAdButtonRect) return null;
+      const rect = this.canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const button = this.levelRewardDoubleAdButtonRect;
+      return x >= button.x && x <= button.x + button.w && y >= button.y && y <= button.y + button.h ? button : null;
+  };
+
   Renderer.prototype.pointToRestartLevelButton = function (clientX, clientY) {
       if (!this.restartLevelButtonRect) return null;
       const rect = this.canvas.getBoundingClientRect();

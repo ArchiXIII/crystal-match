@@ -9,6 +9,7 @@
       this.restartLevelButtonRect = null;
       this.nextLevelButtonRect = null;
       this.levelContinueAdButtonRect = null;
+      this.levelRewardDoubleAdButtonRect = null;
       this.playButtonRect = null;
       this.recordButtonRect = null;
       this.levelButtonRects = [];
@@ -265,6 +266,13 @@
         const gap = compact ? 10 : 12;
         const mainY = y + h - bottomPad - buttonH;
         const nextY = mainY - buttonH - gap;
+        const showDoubleReward = this.game.shouldShowLevelRewardDoubleAd && this.game.shouldShowLevelRewardDoubleAd();
+        if (showDoubleReward) {
+          const doubleY = nextY - buttonH - gap;
+          const reward = String(Math.max(0, Math.floor(this.game.levelRewardDoubleAmount || 0))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+          this.levelRewardDoubleAdButtonRect = { x: buttonX, y: doubleY, w: buttonW, h: buttonH };
+          this.drawGameOverGoldButton(ctx, buttonX, doubleY, buttonW, buttonH, this.t('levels.doubleRewardAd', { coins: reward }), compact, this.game.levelRewardDoublePending);
+        }
         this.nextLevelButtonRect = { x: buttonX, y: nextY, w: buttonW, h: buttonH };
         this.drawGameOverGoldButton(ctx, buttonX, nextY, buttonW, buttonH, this.t('levels.next'), compact);
         this.mainMenuButtonRect = { x: buttonX, y: mainY, w: buttonW, h: buttonH };

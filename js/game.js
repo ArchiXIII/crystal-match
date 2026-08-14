@@ -28,6 +28,7 @@
         compactGameOver: false,
         adsEnabled: true,
         freeBasicRewards: false,
+        levelRewardDoubleAd: false,
         paidCoinPacks: true,
         developerGames: true,
         levelExitButton: false,
@@ -127,6 +128,10 @@
       this.levelResult = '';
       this.pendingLevelWin = false;
       this.pendingLevelReward = 0;
+      this.levelRewardDoubleAmount = 0;
+      this.levelRewardDoubleEligible = false;
+      this.levelRewardDoubleUsed = false;
+      this.levelRewardDoublePending = false;
       this.lastChapterTrophyEarned = null;
       this.levelContinueAdUsed = false;
       this.levelContinueAdPending = false;
@@ -514,6 +519,10 @@
       this.levelResult = '';
       this.pendingLevelWin = false;
       this.pendingLevelReward = 0;
+      this.levelRewardDoubleAmount = 0;
+      this.levelRewardDoubleEligible = false;
+      this.levelRewardDoubleUsed = false;
+      this.levelRewardDoublePending = false;
       this.levelContinueAdUsed = false;
       this.levelContinueAdPending = false;
       this.levelSurrendered = false;
@@ -631,6 +640,10 @@
       this.finishedAt = null;
       this.roundEarnedCoins = 0;
       this.pendingLevelReward = 0;
+      this.levelRewardDoubleAmount = 0;
+      this.levelRewardDoubleEligible = false;
+      this.levelRewardDoubleUsed = false;
+      this.levelRewardDoublePending = false;
       this.lastChapterTrophyEarned = null;
       this.roundNewRank = null;
       this.roundStartRankLevel = this.rankInfo().level;
