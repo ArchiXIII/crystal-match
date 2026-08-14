@@ -61,11 +61,11 @@
     runtimeRecoveryAttempts: 0,
     rewardCoinSyncTimer: null,
     runtimeRecoveryEventsBound: false,
-    stickyBannerSupport: null,
     stickyBannerVisible: false,
     stickyBannerClosedByUser: false,
     stickyBannerShowPromise: null,
     stickyBannerRestorePending: false,
+    stickyBannerRetryTimer: null,
 
     waitForPlatform(promise, timeoutMs, code) {
       return new Promise((resolve, reject) => {
@@ -231,17 +231,12 @@
       }
     },
 
-    async supportsStickyBanner() {
-      if (!this.vkBridge) return false;
-      if (this.stickyBannerSupport !== null) return this.stickyBannerSupport;
-      try {
-        this.stickyBannerSupport = typeof this.vkBridge.supportsAsync === 'function'
-          ? await this.vkBridge.supportsAsync('VKWebAppShowBannerAd')
-          : true;
-      } catch (error) {
-        this.stickyBannerSupport = false;
-      }
-      return this.stickyBannerSupport;
+    scheduleStickyBannerRetry() {
+      if (this.stickyBannerVisible || this.stickyBannerClosedByUser || this.stickyBannerRetryTimer) return;
+      this.stickyBannerRetryTimer = window.setTimeout(() => {
+        this.stickyBannerRetryTimer = null;
+        if (!document.hidden) this.ensureStickyBanner();
+      }, 60000);
     },
 
     ensureStickyBanner() {
@@ -251,14 +246,16 @@
       if (this.stickyBannerVisible) return Promise.resolve(true);
       if (this.stickyBannerShowPromise) return this.stickyBannerShowPromise;
       this.stickyBannerShowPromise = (async () => {
-        if (!await this.supportsStickyBanner()) return false;
         try {
           const available = await this.waitForPlatform(
-            this.vkBridge.send('VKWebAppCheckBannerAd', { banner_location: 'bottom' }),
+            this.vkBridge.send('VKWebAppCheckBannerAd'),
             2500,
             'VK_BANNER_CHECK_TIMEOUT'
           );
-          if (!available || available.result === false) return false;
+          if (!available || available.result === false) {
+            this.scheduleStickyBannerRetry();
+            return false;
+          }
           const response = await this.waitForPlatform(
             this.vkBridge.send('VKWebAppShowBannerAd', {
               banner_location: 'bottom',
@@ -271,13 +268,20 @@
           );
           this.stickyBannerVisible = !!(response && response.result !== false);
           if (this.stickyBannerVisible) {
+            if (this.stickyBannerRetryTimer) {
+              window.clearTimeout(this.stickyBannerRetryTimer);
+              this.stickyBannerRetryTimer = null;
+            }
             window.setTimeout(() => {
               if (this.resize) this.resize();
             }, 0);
+          } else {
+            this.scheduleStickyBannerRetry();
           }
           return this.stickyBannerVisible;
         } catch (error) {
           this.warnPlatformIssue('Sticky banner unavailable', error);
+          this.scheduleStickyBannerRetry();
           return false;
         }
       })().finally(() => {
