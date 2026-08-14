@@ -61,6 +61,11 @@
     runtimeRecoveryAttempts: 0,
     rewardCoinSyncTimer: null,
     runtimeRecoveryEventsBound: false,
+    stickyBannerSupport: null,
+    stickyBannerVisible: false,
+    stickyBannerClosedByUser: false,
+    stickyBannerShowPromise: null,
+    stickyBannerRestorePending: false,
 
     waitForPlatform(promise, timeoutMs, code) {
       return new Promise((resolve, reject) => {
@@ -208,10 +213,108 @@
           if (type === 'VKWebAppViewRestore') {
             this.refreshCloudCoins();
             this.scheduleRuntimeRestore();
+            this.ensureStickyBanner();
+            return;
+          }
+          if (type === 'VKWebAppBannerAdUpdated') {
+            this.stickyBannerVisible = !!(event.detail.data && event.detail.data.result !== false);
+            if (this.resize) this.resize();
+            return;
+          }
+          if (type === 'VKWebAppBannerAdClosedByUser') {
+            this.stickyBannerVisible = false;
+            this.stickyBannerClosedByUser = true;
+            if (this.resize) this.resize();
           }
         };
         this.vkBridge.subscribe(this.bridgeListener);
       }
+    },
+
+    async supportsStickyBanner() {
+      if (!this.vkBridge) return false;
+      if (this.stickyBannerSupport !== null) return this.stickyBannerSupport;
+      try {
+        this.stickyBannerSupport = typeof this.vkBridge.supportsAsync === 'function'
+          ? await this.vkBridge.supportsAsync('VKWebAppShowBannerAd')
+          : true;
+      } catch (error) {
+        this.stickyBannerSupport = false;
+      }
+      return this.stickyBannerSupport;
+    },
+
+    ensureStickyBanner() {
+      if (!this.vkBridge || this.stickyBannerClosedByUser || this.stickyBannerRestorePending || document.hidden) {
+        return Promise.resolve(false);
+      }
+      if (this.stickyBannerVisible) return Promise.resolve(true);
+      if (this.stickyBannerShowPromise) return this.stickyBannerShowPromise;
+      this.stickyBannerShowPromise = (async () => {
+        if (!await this.supportsStickyBanner()) return false;
+        try {
+          const available = await this.waitForPlatform(
+            this.vkBridge.send('VKWebAppCheckBannerAd', { banner_location: 'bottom' }),
+            2500,
+            'VK_BANNER_CHECK_TIMEOUT'
+          );
+          if (!available || available.result === false) return false;
+          const response = await this.waitForPlatform(
+            this.vkBridge.send('VKWebAppShowBannerAd', {
+              banner_location: 'bottom',
+              banner_align: 'center',
+              layout_type: 'resize',
+              can_close: false
+            }),
+            3500,
+            'VK_BANNER_SHOW_TIMEOUT'
+          );
+          this.stickyBannerVisible = !!(response && response.result !== false);
+          if (this.stickyBannerVisible) {
+            window.setTimeout(() => {
+              if (this.resize) this.resize();
+            }, 0);
+          }
+          return this.stickyBannerVisible;
+        } catch (error) {
+          this.warnPlatformIssue('Sticky banner unavailable', error);
+          return false;
+        }
+      })().finally(() => {
+        this.stickyBannerShowPromise = null;
+      });
+      return this.stickyBannerShowPromise;
+    },
+
+    async hideStickyBannerForOverlay() {
+      const pendingShow = this.stickyBannerShowPromise;
+      this.stickyBannerRestorePending = this.stickyBannerVisible || !!pendingShow;
+      if (!this.vkBridge) return false;
+      if (pendingShow) {
+        try {
+          await pendingShow;
+        } catch (error) {}
+      }
+      if (!this.stickyBannerVisible) return false;
+      try {
+        await this.waitForPlatform(
+          this.vkBridge.send('VKWebAppHideBannerAd'),
+          2000,
+          'VK_BANNER_HIDE_TIMEOUT'
+        );
+      } catch (error) {
+        this.warnPlatformIssue('Sticky banner hide failed', error);
+      }
+      this.stickyBannerVisible = false;
+      if (this.resize) this.resize();
+      return true;
+    },
+
+    restoreStickyBannerAfterOverlay() {
+      const shouldRestore = this.stickyBannerRestorePending;
+      this.stickyBannerRestorePending = false;
+      if (!shouldRestore || this.stickyBannerClosedByUser) return;
+      window.setTimeout(() => this.ensureStickyBanner(), 250);
     },
 
     bindRuntimeRecoveryEvents() {
@@ -861,7 +964,7 @@
       const ready = format === 'reward'
         ? this.waitForVkRewardAd(params)
         : Promise.resolve(true);
-      return ready.then(() => {
+      return ready.then(() => this.hideStickyBannerForOverlay()).then(() => {
         this.beginPlatformOverlayAudioPause();
         return this.requestVkAd(format, params);
       })
@@ -874,6 +977,7 @@
           this.adInFlight = false;
           this.endPlatformOverlayAudioPause();
           this.scheduleRuntimeRestore();
+          this.restoreStickyBannerAfterOverlay();
         });
     },
 

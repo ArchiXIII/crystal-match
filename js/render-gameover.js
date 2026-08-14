@@ -271,7 +271,7 @@
           const doubleY = nextY - buttonH - gap;
           const reward = String(Math.max(0, Math.floor(this.game.levelRewardDoubleAmount || 0))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
           this.levelRewardDoubleAdButtonRect = { x: buttonX, y: doubleY, w: buttonW, h: buttonH };
-          this.drawGameOverGoldButton(ctx, buttonX, doubleY, buttonW, buttonH, this.t('levels.doubleRewardAd', { coins: reward }), compact, this.game.levelRewardDoublePending);
+          this.drawGameOverGoldButton(ctx, buttonX, doubleY, buttonW, buttonH, this.t('levels.doubleRewardAd', { coins: reward }), compact, this.game.levelRewardDoublePending, true);
         }
         this.nextLevelButtonRect = { x: buttonX, y: nextY, w: buttonW, h: buttonH };
         this.drawGameOverGoldButton(ctx, buttonX, nextY, buttonW, buttonH, this.t('levels.next'), compact);
@@ -327,7 +327,7 @@
       ctx.restore();
     };
 
-  Renderer.prototype.drawGameOverGoldButton = function (ctx, x, y, w, h, label, compact, disabled) {
+  Renderer.prototype.drawGameOverGoldButton = function (ctx, x, y, w, h, label, compact, disabled, coinAfterFirstWord) {
       ctx.save();
       this.roundRect(ctx, x, y, w, h, 16);
       const grd = ctx.createLinearGradient(x, y, x, y + h);
@@ -343,10 +343,44 @@
       ctx.lineWidth = 2;
       ctx.stroke();
       ctx.fillStyle = disabled ? 'rgba(20, 11, 4, 0.72)' : '#140b04';
-      ctx.font = '800 ' + (compact ? 13 : 15) + 'px CrystalUI, Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(label, x + w / 2, y + h / 2 + 1, w - 18);
+      if (coinAfterFirstWord) {
+        const splitAt = label.indexOf(' ');
+        const first = splitAt > 0 ? label.slice(0, splitAt) : label;
+        const rest = splitAt > 0 ? label.slice(splitAt + 1) : '';
+        const maxW = w - 18;
+        let fontSize = compact ? 13 : 15;
+        let coinR = fontSize * 0.58;
+        let gap = Math.max(3, fontSize * 0.24);
+        ctx.font = '800 ' + fontSize + 'px CrystalUI, Arial';
+        let firstW = ctx.measureText(first).width;
+        let restW = rest ? ctx.measureText(rest).width : 0;
+        const naturalW = firstW + coinR * 2 + gap * 2 + restW;
+        if (naturalW > maxW) {
+          fontSize *= maxW / naturalW;
+          coinR = fontSize * 0.58;
+          gap = Math.max(2, fontSize * 0.24);
+          ctx.font = '800 ' + fontSize + 'px CrystalUI, Arial';
+          firstW = ctx.measureText(first).width;
+          restW = rest ? ctx.measureText(rest).width : 0;
+        }
+        const totalW = firstW + coinR * 2 + gap * 2 + restW;
+        let cursorX = x + (w - totalW) / 2;
+        const textY = y + h / 2 + 1;
+        ctx.textAlign = 'left';
+        ctx.fillText(first, cursorX, textY);
+        cursorX += firstW + gap + coinR;
+        this.drawCoin(ctx, cursorX, y + h / 2, coinR);
+        cursorX += coinR + gap;
+        ctx.fillStyle = disabled ? 'rgba(20, 11, 4, 0.72)' : '#140b04';
+        ctx.font = '800 ' + fontSize + 'px CrystalUI, Arial';
+        ctx.textAlign = 'left';
+        if (rest) ctx.fillText(rest, cursorX, textY);
+      } else {
+        ctx.font = '800 ' + (compact ? 13 : 15) + 'px CrystalUI, Arial';
+        ctx.fillText(label, x + w / 2, y + h / 2 + 1, w - 18);
+      }
       ctx.restore();
     };
 

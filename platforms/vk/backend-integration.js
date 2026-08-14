@@ -714,6 +714,7 @@
       this.purchaseInFlight = true;
       this.beginPlatformOverlayAudioPause();
       try {
+        if (this.hideStickyBannerForOverlay) await this.hideStickyBannerForOverlay();
         await this.vkBridge.send('VKWebAppShowOrderBox', {
           type: 'item',
           item: product.item
@@ -731,6 +732,7 @@
         this.purchaseInFlight = false;
         this.endPlatformOverlayAudioPause();
         this.scheduleRuntimeRestore();
+        if (this.restoreStickyBannerAfterOverlay) this.restoreStickyBannerAfterOverlay();
       }
     },
 
