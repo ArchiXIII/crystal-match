@@ -9,6 +9,8 @@
       this.startCell = null;
       this.startPoint = null;
       this.pointerId = null;
+      this.gameOverScrollPointer = false;
+      this.gameOverScrollY = 0;
       this.bind();
     }
 
@@ -21,6 +23,7 @@
       this.canvas.addEventListener('auxclick', (event) => event.preventDefault());
       this.canvas.addEventListener('dragstart', (event) => event.preventDefault());
       this.canvas.addEventListener('drop', (event) => event.preventDefault());
+      this.canvas.addEventListener('wheel', (event) => this.onWheel(event), { passive: false });
     }
 
     onPointerDown(event) {
@@ -125,6 +128,15 @@
         const started = this.game.continueLevelWithAd && this.game.continueLevelWithAd();
         this.game.playSound(started ? 'button' : 'swapError');
         this.reset();
+        return;
+      }
+      if (this.game.gameOver && this.renderer.pointToGameOverLeaderboardViewport &&
+        this.renderer.pointToGameOverLeaderboardViewport(event.clientX, event.clientY)) {
+        this.canvas.setPointerCapture(event.pointerId);
+        this.pointerId = event.pointerId;
+        this.gameOverScrollPointer = true;
+        this.gameOverScrollY = event.clientY;
+        event.preventDefault();
         return;
       }
       const levelRewardDoubleAdButton = this.renderer.pointToLevelRewardDoubleAdButton && this.renderer.pointToLevelRewardDoubleAdButton(event.clientX, event.clientY);
@@ -317,6 +329,13 @@
 
     onPointerMove(event) {
       if (this.renderer.isMobileLandscapeBlocked && this.renderer.isMobileLandscapeBlocked()) return;
+      if (this.gameOverScrollPointer && event.pointerId === this.pointerId) {
+        const delta = this.gameOverScrollY - event.clientY;
+        this.gameOverScrollY = event.clientY;
+        this.renderer.scrollGameOverLeaderboard(delta);
+        event.preventDefault();
+        return;
+      }
       if (!this.startCell || !this.startPoint || event.pointerId !== this.pointerId) return;
       const l = this.renderer.layout;
       if (!l || !l.cell) return;
@@ -346,6 +365,10 @@
         this.reset();
         return;
       }
+      if (this.gameOverScrollPointer && event.pointerId === this.pointerId) {
+        this.reset();
+        return;
+      }
       if (!this.startCell || !this.startPoint) return;
       const endCell = this.renderer.pointToCell(event.clientX, event.clientY);
       const dx = event.clientX - this.startPoint.x;
@@ -365,11 +388,20 @@
       this.reset();
     }
 
+    onWheel(event) {
+      if (!this.game.gameOver || !this.renderer.pointToGameOverLeaderboardViewport ||
+        !this.renderer.pointToGameOverLeaderboardViewport(event.clientX, event.clientY)) return;
+      event.preventDefault();
+      this.renderer.scrollGameOverLeaderboard(event.deltaY);
+    }
+
     reset() {
       this.game.clearDragPreview();
       this.startCell = null;
       this.startPoint = null;
       this.pointerId = null;
+      this.gameOverScrollPointer = false;
+      this.gameOverScrollY = 0;
     }
   }
 

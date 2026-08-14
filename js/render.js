@@ -74,6 +74,9 @@
       this.nextLevelButtonRect = null;
       this.levelContinueAdButtonRect = null;
       this.levelRewardDoubleAdButtonRect = null;
+      this.gameOverLeaderboardViewportRect = null;
+      this.gameOverLeaderboardScroll = 0;
+      this.gameOverLeaderboardScrollKey = '';
       this.leaderboardButtonRect = null;
       this.leaderboardCloseRect = null;
       this.leaderboardTabRects = [];

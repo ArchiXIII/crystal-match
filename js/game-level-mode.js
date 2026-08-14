@@ -318,7 +318,7 @@
       const previousStars = this.levelStarsFor(this.currentLevel.n);
       const levelReward = Math.max(0, Math.floor(Number(this.pendingLevelReward || (this.currentGoal && this.currentGoal.reward) || 0)));
       this.levelRewardDoubleAmount = levelReward;
-      this.levelRewardDoubleEligible = this.platformFeatures.levelRewardDoubleAd === true && previousStars <= 0 && levelReward > 0;
+      this.levelRewardDoubleEligible = this.platformFeatures.levelRewardDoubleAd === true && levelReward > 0;
       this.levelRewardDoubleUsed = false;
       this.levelRewardDoublePending = false;
       if (levelReward > 0) {

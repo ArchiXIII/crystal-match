@@ -17,6 +17,7 @@
       this.levelPlayButtonRect = null;
       this.dailyBonusButtonRect = null;
       this.ourGamesButtonRect = null;
+      this.gameOverLeaderboardViewportRect = null;
       if (!this.game.gameOver) return;
       this.levelWinStarsSource = null;
       ctx.save();
@@ -166,6 +167,14 @@
             const listX = x + 22;
             const listW = w - 44;
             const rowH = compact ? 25 : 28;
+            const resultButtonH = compact ? 42 : 46;
+            const resultGap = compact ? 10 : 12;
+            const resultBottomPad = compact ? 18 : 22;
+            const resultMainY = y + h - resultBottomPad - resultButtonH;
+            const resultNextY = resultMainY - resultButtonH - resultGap;
+            const resultHasDouble = this.game.shouldShowLevelRewardDoubleAd && this.game.shouldShowLevelRewardDoubleAd();
+            const resultTopButtonY = resultHasDouble ? resultNextY - resultButtonH - resultGap : resultNextY;
+            const viewportH = Math.max(0, resultTopButtonY - (compact ? 7 : 9) - levelBoardY);
             if (this.game.gameOverLeaderboardLoading) {
               ctx.fillStyle = 'rgba(255, 244, 214, 0.78)';
               ctx.font = '700 12px CrystalUI, Arial';
@@ -176,16 +185,7 @@
               this.wrapText(ctx, this.game.gameOverLeaderboardError, x + 30, levelBoardY + rowH, w - 60, 17);
             } else {
               const rows = this.gameOverLeaderboardRows(this.game.gameOverLeaderboardEntries || []);
-              rows.forEach((entry, index) => {
-                const rowY = levelBoardY + index * rowH;
-                if (entry.divider) {
-                  ctx.fillStyle = 'rgba(255, 229, 144, 0.58)';
-                  ctx.font = '800 16px CrystalUI, Arial';
-                  ctx.fillText('...', x + w / 2, rowY + rowH / 2);
-                } else {
-                  this.drawGameOverLeaderboardRow(ctx, entry, listX, rowY, listW, rowH - 4);
-                }
-              });
+              this.drawGameOverLeaderboardViewport(ctx, rows, listX, levelBoardY, listW, viewportH, rowH);
             }
           }
         } else {
@@ -224,17 +224,18 @@
             ctx.fillText(this.t('gameOver.leaderboardPending'), x + w / 2, contentY + rowH * 1.5);
             contentY += rowH * 4.5;
           } else {
-            rows.forEach((entry, index) => {
-              const rowY = contentY + index * rowH;
-              if (entry.divider) {
-                ctx.fillStyle = 'rgba(255, 229, 144, 0.58)';
-                ctx.font = '800 16px CrystalUI, Arial';
-                ctx.fillText('...', x + w / 2, rowY + rowH / 2);
-                return;
-              }
-              this.drawGameOverLeaderboardRow(ctx, entry, listX, rowY, listW, rowH - 4);
-            });
-            contentY += rows.length * rowH + (compact ? 8 : 12);
+            const resultButtonH = compact ? 42 : 46;
+            const resultBottomPad = compact ? 18 : 22;
+            const resultSecondaryY = y + h - resultBottomPad - resultButtonH;
+            const resultCanContinue = this.game.canContinueLevelWithAd && this.game.canContinueLevelWithAd();
+            const resultDeveloperGames = this.game.platformFeatures.developerGames !== false;
+            const resultAdY = resultCanContinue ? resultSecondaryY - resultButtonH - 10 : 0;
+            const resultButtonY = resultCanContinue ? resultAdY - resultButtonH - 10 : resultSecondaryY - resultButtonH - 10;
+            const resultMainY = resultDeveloperGames ? resultButtonY : resultSecondaryY;
+            const resultTopButtonY = resultCanContinue ? resultButtonY : Math.min(resultMainY, resultSecondaryY);
+            const viewportH = Math.max(0, resultTopButtonY - (compact ? 7 : 9) - contentY);
+            this.drawGameOverLeaderboardViewport(ctx, rows, listX, contentY, listW, viewportH, rowH);
+            contentY += Math.min(rows.length * rowH, viewportH) + (compact ? 8 : 12);
           }
         }
       }
@@ -407,6 +408,80 @@
       }
       if (!rows.length && sorted.length) return sorted.slice(0, 7);
       return rows.slice(0, 9);
+    };
+
+  Renderer.prototype.drawGameOverLeaderboardViewport = function (ctx, rows, x, y, w, h, rowH) {
+      const viewportH = Math.max(0, h);
+      const totalH = rows.length * rowH;
+      const maxScroll = Math.max(0, totalH - viewportH);
+      const playerIndex = rows.findIndex((entry) => entry && entry.isPlayer);
+      const playerRank = playerIndex >= 0 ? rows[playerIndex].rank : 0;
+      const key = String(this.game.finishedAt || 0) + '|' + this.game.gameOverLeaderboardType + '|' + rows.length + ':' + playerIndex + ':' + playerRank + '|' + Math.round(viewportH);
+      if (this.gameOverLeaderboardScrollKey !== key) {
+        this.gameOverLeaderboardScroll = playerIndex >= 0
+          ? Math.max(0, Math.min(maxScroll, (playerIndex + 0.5) * rowH - viewportH / 2))
+          : 0;
+        this.gameOverLeaderboardScrollKey = key;
+      } else {
+        this.gameOverLeaderboardScroll = Math.max(0, Math.min(maxScroll, this.gameOverLeaderboardScroll || 0));
+      }
+      this.gameOverLeaderboardViewportRect = { x, y, w, h: viewportH, maxScroll };
+      if (viewportH <= 0) return;
+
+      const scroll = this.gameOverLeaderboardScroll || 0;
+      const rowW = maxScroll > 0 ? w - 10 : w;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, w, viewportH);
+      ctx.clip();
+      rows.forEach((entry, index) => {
+        const rowY = y + index * rowH - scroll;
+        if (rowY + rowH <= y || rowY >= y + viewportH) return;
+        if (entry.divider) {
+          ctx.fillStyle = 'rgba(255, 229, 144, 0.58)';
+          ctx.font = '800 16px CrystalUI, Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('...', x + rowW / 2, rowY + rowH / 2);
+        } else {
+          this.drawGameOverLeaderboardRow(ctx, entry, x, rowY, rowW, rowH - 4);
+        }
+      });
+      if (maxScroll > 0) {
+        const trackX = x + w - 4;
+        const thumbH = Math.max(18, viewportH * viewportH / totalH);
+        const thumbY = y + (viewportH - thumbH) * scroll / maxScroll;
+        ctx.strokeStyle = 'rgba(255, 229, 144, 0.16)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(trackX, y + 2);
+        ctx.lineTo(trackX, y + viewportH - 2);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 229, 144, 0.64)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(trackX, thumbY + 1);
+        ctx.lineTo(trackX, thumbY + thumbH - 1);
+        ctx.stroke();
+      }
+      ctx.restore();
+    };
+
+  Renderer.prototype.pointToGameOverLeaderboardViewport = function (clientX, clientY) {
+      const area = this.gameOverLeaderboardViewportRect;
+      if (!area || area.maxScroll <= 0 || area.h <= 0) return null;
+      const rect = this.canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      return x >= area.x && x <= area.x + area.w && y >= area.y && y <= area.y + area.h ? area : null;
+    };
+
+  Renderer.prototype.scrollGameOverLeaderboard = function (delta) {
+      const area = this.gameOverLeaderboardViewportRect;
+      if (!area || area.maxScroll <= 0 || !delta) return false;
+      const next = Math.max(0, Math.min(area.maxScroll, (this.gameOverLeaderboardScroll || 0) + delta));
+      if (next === this.gameOverLeaderboardScroll) return false;
+      this.gameOverLeaderboardScroll = next;
+      return true;
     };
 
   Renderer.prototype.drawGameOverLeaderboardRow = function (ctx, entry, x, y, w, h) {
