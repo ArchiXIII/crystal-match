@@ -450,18 +450,30 @@
       );
       if (value <= progress.endlessSubmittedScore) return Promise.resolve(true);
       if (!this.backendClient || !value) return Promise.resolve(false);
+      if (!this.endlessLeaderboardCache) {
+        const stored = this.loadStoredEndlessLeaderboard();
+        if (stored) {
+          this.endlessLeaderboardCache = stored.entries;
+          this.endlessLeaderboardCacheAt = stored.savedAt;
+        }
+      }
+      const playerName = this.getPlatformPlayerName();
+      if (this.endlessLeaderboardCache &&
+          !this.isStarsTopCandidate(this.endlessLeaderboardCache, value, playerName)) {
+        this.markOkEndlessScoreSubmitted(value);
+        return Promise.resolve(true);
+      }
       if (this.okEndlessScoreSubmitInFlight) return this.okEndlessScoreSubmitInFlight;
       this.okEndlessScoreSubmitInFlight = this.backendClient
-        .submitOkEndlessScore(value, this.getPlatformPlayerName())
-        .then(() => {
-          if (!this.cloudProgress) this.cloudProgress = {};
-          this.cloudProgress.endlessSubmittedScore = Math.max(
-            Math.floor(Number(this.cloudProgress.endlessSubmittedScore) || 0),
-            value
-          );
-          this.saveLocalSubmittedScore(this.cloudProgress.endlessSubmittedScore);
-          this.markCloudDirty(0);
-          this.flushCloudProgress();
+        .submitOkEndlessScore(value, playerName)
+        .then((payload) => {
+          const entries = this.mapBackendLeaderboard(payload);
+          if (entries.length) {
+            this.endlessLeaderboardCache = entries;
+            this.endlessLeaderboardCacheAt = Date.now();
+            this.saveStoredEndlessLeaderboard(entries);
+          }
+          this.markOkEndlessScoreSubmitted(value);
           return true;
         })
         .catch((error) => {
@@ -472,6 +484,17 @@
           this.okEndlessScoreSubmitInFlight = null;
         });
       return this.okEndlessScoreSubmitInFlight;
+    },
+
+    markOkEndlessScoreSubmitted(score) {
+      if (!this.cloudProgress) this.cloudProgress = {};
+      this.cloudProgress.endlessSubmittedScore = Math.max(
+        Math.floor(Number(this.cloudProgress.endlessSubmittedScore) || 0),
+        Math.max(0, Math.floor(Number(score) || 0))
+      );
+      this.saveLocalSubmittedScore(this.cloudProgress.endlessSubmittedScore);
+      this.markCloudDirty(0);
+      this.flushCloudProgress();
     },
 
     retryPendingOkEndlessScore() {
