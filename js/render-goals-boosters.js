@@ -452,17 +452,20 @@
         }
         this.wrapTextLeft(ctx, hint, hintX, hintTop, hintW, lineHeight, hintBottom);
       } else {
-        const hintY = Math.min(y + h + 3, panelY + panelH - (l.goalSide ? 37 : 31));
+        const hintTop = y + h + 2;
         const hintW = Math.max(64, panelW - 18);
         const hintBottom = panelY + panelH - 8;
         let fontSize = l.goalSide ? 13 : 12;
         let lineHeight = l.goalSide ? 17 : 14;
         ctx.font = '700 ' + fontSize + 'px CrystalUI, Arial';
-        while (fontSize > 8 && this.wrappedLineCount(ctx, hint, hintW) * lineHeight > hintBottom - hintY) {
+        let lineCount = this.wrappedLineCount(ctx, hint, hintW);
+        while (fontSize > 8 && lineCount * lineHeight > hintBottom - hintTop) {
           fontSize -= 1;
           lineHeight = Math.max(9, fontSize + 2);
           ctx.font = '700 ' + fontSize + 'px CrystalUI, Arial';
+          lineCount = this.wrappedLineCount(ctx, hint, hintW);
         }
+        const hintY = hintTop + Math.max(0, (hintBottom - hintTop - lineCount * lineHeight) / 2);
         this.wrapText(ctx, hint, panelX + 9, hintY, hintW, lineHeight);
       }
       ctx.restore();

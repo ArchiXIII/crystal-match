@@ -396,12 +396,22 @@
         }
         return sorted.slice(0, 3);
       }
-      const top = sorted.filter((entry) => entry.rank <= 5).slice(0, 5);
+      const features = this.game.platformFeatures || {};
+      const configuredTop = Math.floor(Number(features.gameOverLeaderboardTopCount) || 0);
+      const configuredAround = Math.floor(Number(features.gameOverLeaderboardAroundCount) || 0);
+      const topCount = configuredTop > 0 ? configuredTop : 5;
+      const aroundCount = configuredAround > 0 ? configuredAround : 0;
+      const top = sorted.filter((entry) => entry.rank <= topCount).slice(0, topCount);
       const player = sorted.find((entry) => entry.isPlayer);
       const rows = top.slice();
       if (player && !top.some((entry) => entry.rank === player.rank)) {
-        rows.push({ divider: true });
-        rows.push(player);
+        const around = aroundCount > 0
+          ? sorted.filter((entry) => Math.abs(entry.rank - player.rank) <= aroundCount && !rows.some((row) => row.rank === entry.rank))
+          : [player];
+        if (around.length) {
+          rows.push({ divider: true });
+          around.forEach((entry) => rows.push(entry));
+        }
       } else if (unrankedPlayer) {
         if (rows.length) rows.push({ divider: true });
         rows.push(unrankedPlayer);

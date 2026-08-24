@@ -5,7 +5,9 @@
   const Adapter = {
     name: 'yandex',
     features: {
-      xpLeaderboard: false
+      xpLeaderboard: false,
+      gameOverLeaderboardTopCount: 3,
+      gameOverLeaderboardAroundCount: 1
     },
     ysdk: null,
     player: null,
@@ -773,9 +775,9 @@
       try {
         if (submitValue > 0) await this.setLeaderboardScore(leaderboardName, submitValue).catch(() => false);
         const result = await this.getLeaderboardEntries(leaderboardName, {
-          quantityTop: starsMode ? 1 : 5,
+          quantityTop: 3,
           includeUser: true,
-          quantityAround: starsMode ? 1 : 2
+          quantityAround: 1
         });
         if (!result) throw new Error('Leaderboard API unavailable');
         this.game.setGameOverLeaderboardEntries(this.mapLeaderboardEntries(result));
