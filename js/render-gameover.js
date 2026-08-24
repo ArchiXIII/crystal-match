@@ -3,6 +3,12 @@
 
   const Renderer = window.CrystalMatchRenderer;
   if (!Renderer) return;
+  const GAME_OVER_MEDALS = [
+    null,
+    { main: '#ffe590', edge: '#f6bd4c', glow: 'rgba(255, 219, 92, 0.72)', fillA: 'rgba(255, 220, 108, 0.2)', fillB: 'rgba(126, 79, 18, 0.12)' },
+    { main: '#e9f2ff', edge: '#9eb5cf', glow: 'rgba(191, 220, 255, 0.52)', fillA: 'rgba(210, 230, 255, 0.15)', fillB: 'rgba(96, 118, 148, 0.1)' },
+    { main: '#ffc279', edge: '#c97932', glow: 'rgba(255, 159, 74, 0.46)', fillA: 'rgba(255, 160, 82, 0.14)', fillB: 'rgba(111, 57, 22, 0.1)' }
+  ];
 
   Renderer.prototype.drawGameOver = function (ctx) {
       this.mainMenuButtonRect = null;
@@ -496,23 +502,55 @@
 
   Renderer.prototype.drawGameOverLeaderboardRow = function (ctx, entry, x, y, w, h) {
       const isPlayer = entry.isPlayer;
+      const hasRank = Number.isFinite(entry.rank);
+      const rank = hasRank ? entry.rank : 0;
+      const medal = GAME_OVER_MEDALS[rank] || null;
       this.roundRect(ctx, x, y, w, h, 9);
-      ctx.fillStyle = isPlayer ? 'rgba(246, 189, 76, 0.2)' : 'rgba(255, 255, 255, 0.055)';
-      ctx.fill();
+      const fill = ctx.createLinearGradient(x, y, x + w, y + h);
       if (isPlayer) {
-        ctx.strokeStyle = 'rgba(255, 229, 144, 0.66)';
-        ctx.lineWidth = 1.2;
+        fill.addColorStop(0, 'rgba(246, 189, 76, 0.24)');
+        fill.addColorStop(1, 'rgba(122, 242, 255, 0.1)');
+      } else if (medal) {
+        fill.addColorStop(0, medal.fillA);
+        fill.addColorStop(1, medal.fillB);
+      } else {
+        fill.addColorStop(0, 'rgba(255, 255, 255, 0.065)');
+        fill.addColorStop(1, 'rgba(255, 255, 255, 0.035)');
+      }
+      ctx.fillStyle = fill;
+      ctx.fill();
+      if (isPlayer || medal) {
+        ctx.shadowColor = isPlayer ? 'rgba(255, 229, 144, 0.5)' : medal.glow;
+        ctx.shadowBlur = this.shadow(rank === 1 ? 16 : (medal ? 10 : 0));
+        ctx.strokeStyle = isPlayer ? 'rgba(255, 229, 144, 0.76)' : medal.edge;
+        ctx.lineWidth = isPlayer ? 1.7 : (rank === 1 ? 1.7 : 1.25);
         ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      if (rank === 1) {
+        const shine = ctx.createLinearGradient(x + w * 0.08, y, x + w * 0.44, y + h);
+        shine.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        shine.addColorStop(0.48, 'rgba(255, 249, 214, 0.12)');
+        shine.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = shine;
+        this.roundRect(ctx, x + 2, y + 1, w - 4, h - 2, 8);
+        ctx.fill();
       }
       ctx.textBaseline = 'middle';
+      if (medal) {
+        this.drawLeaderboardMedal(ctx, x + 19, y + h / 2, Math.min(10, h * 0.38), rank, medal);
+      } else {
+        ctx.textAlign = 'left';
+        ctx.fillStyle = isPlayer ? '#ffe590' : '#f6bd4c';
+        ctx.font = '800 12px CrystalUI, Arial';
+        if (hasRank) ctx.fillText(String(rank), x + 10, y + h / 2 + 1);
+      }
       ctx.textAlign = 'left';
       ctx.fillStyle = isPlayer ? '#ffe590' : '#fff4d6';
-      ctx.font = '800 12px CrystalUI, Arial';
-      const hasRank = Number.isFinite(entry.rank);
-      if (hasRank) ctx.fillText(String(entry.rank), x + 10, y + h / 2 + 1);
       ctx.font = '700 12px CrystalUI, Arial';
       ctx.fillText(entry.name || this.t('leaderboard.player'), x + (hasRank ? 54 : 10), y + h / 2 + 1, w - (hasRank ? 150 : 106));
       ctx.textAlign = 'right';
+      ctx.fillStyle = medal ? medal.main : (isPlayer ? '#ffe590' : '#fff4d6');
       ctx.font = '800 12px CrystalUI, Arial';
       const valueText = String(entry.score || 0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
       if (this.game.gameOverLeaderboardType === 'stars') {
