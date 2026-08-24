@@ -5,7 +5,6 @@
     name: 'yandex',
     leaderboardName: 'CrystalTreasuresMatch3',
     starsLeaderboardName: 'CrystalTreasuresStars',
-    xpLeaderboardName: 'CrystalTreasuresXP',
     storageKey: 'crystalProgress',
     localBestScoreKey: 'crystal-match-best-score',
     products: {

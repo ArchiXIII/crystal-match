@@ -4,13 +4,15 @@
   const config = window.CrystalMatchPlatformConfig || {};
   const Adapter = {
     name: 'yandex',
+    features: {
+      xpLeaderboard: false
+    },
     ysdk: null,
     player: null,
     leaderboards: null,
     payments: null,
     leaderboardName: config.leaderboardName || 'CrystalTreasuresMatch3',
     starsLeaderboardName: config.starsLeaderboardName || 'CrystalTreasuresStars',
-    xpLeaderboardName: config.xpLeaderboardName || 'CrystalTreasuresXP',
     cloudStorageKey: config.storageKey || 'crystalProgress',
     localBestScoreKey: config.localBestScoreKey || 'crystal-match-best-score',
     pendingCoinSave: null,
@@ -289,7 +291,6 @@
       this.pendingDailyBonusSave = null;
       this.pendingAdBonusSave = null;
       this.pendingLevelProgressSave = null;
-      if (savedXp !== null) this.submitXpLeaderboard(savedXp);
       const payload = this.buildCloudProgressPayload();
       this.lastCloudSaveAt = Date.now();
       this.cloudSaveInFlight = this.player.setData(payload, true)
@@ -481,6 +482,33 @@
         this.leaderboards = null;
         return null;
       }
+    },
+
+    async setLeaderboardScore(leaderboardName, score) {
+      const leaderboards = await this.getLeaderboards();
+      if (!leaderboards) return false;
+      if (leaderboards.setScore) {
+        if (this.ysdk && this.ysdk.isAvailableMethod) {
+          try {
+            if (!await this.ysdk.isAvailableMethod('leaderboards.setScore')) return false;
+          } catch (error) {}
+        }
+        await leaderboards.setScore(leaderboardName, score);
+        return true;
+      }
+      if (leaderboards.setLeaderboardScore) {
+        await leaderboards.setLeaderboardScore(leaderboardName, score);
+        return true;
+      }
+      return false;
+    },
+
+    async getLeaderboardEntries(leaderboardName, options) {
+      const leaderboards = await this.getLeaderboards();
+      if (!leaderboards) return null;
+      if (leaderboards.getEntries) return leaderboards.getEntries(leaderboardName, options);
+      if (leaderboards.getLeaderboardEntries) return leaderboards.getLeaderboardEntries(leaderboardName, options);
+      return null;
     },
 
     async getPayments() {
@@ -679,28 +707,13 @@
       const value = Math.max(0, Math.floor(score || 0));
       this.saveLocalBestScore(value);
       const submitValue = Math.max(value, this.loadLocalBestScore());
-      return this.getLeaderboards().then((leaderboards) => {
-        if (!leaderboards || !leaderboards.setLeaderboardScore) return;
-        return leaderboards.setLeaderboardScore(this.leaderboardName, submitValue).catch(() => {});
-      });
+      return this.setLeaderboardScore(this.leaderboardName, submitValue).catch(() => false);
     },
 
     submitStarsLeaderboard(stars) {
       const value = Math.max(0, Math.floor(stars || 0));
       if (value <= 0) return Promise.resolve();
-      return this.getLeaderboards().then((leaderboards) => {
-        if (!leaderboards || !leaderboards.setLeaderboardScore) return;
-        return leaderboards.setLeaderboardScore(this.starsLeaderboardName, value).catch(() => {});
-      });
-    },
-
-    submitXpLeaderboard(xp) {
-      const value = Math.max(0, Math.floor(xp || 0));
-      if (value <= 0) return Promise.resolve();
-      return this.getLeaderboards().then((leaderboards) => {
-        if (!leaderboards || !leaderboards.setLeaderboardScore) return;
-        return leaderboards.setLeaderboardScore(this.xpLeaderboardName, value).catch(() => {});
-      });
+      return this.setLeaderboardScore(this.starsLeaderboardName, value).catch(() => false);
     },
 
     saveLocalBestScore(score) {
@@ -725,56 +738,20 @@
       if (!this.game) return;
       const tab = type === 'endless' ? 'endless' : 'stars';
       const leaderboardName = tab === 'stars' ? this.starsLeaderboardName : this.leaderboardName;
-      const fallbackScore = tab === 'stars'
+      const currentScore = tab === 'stars'
         ? (this.game.totalLevelStars ? this.game.totalLevelStars() : 0)
-        : Math.max(this.game.score, this.loadLocalBestScore());
-      const leaderboards = await this.getLeaderboards();
-      if (!leaderboards || !leaderboards.getLeaderboardEntries) {
-        this.game.setLeaderboardEntries([{
-          rank: 1,
-          name: 'Archi',
-          score: fallbackScore,
-          isPlayer: true
-        }]);
-        return;
-      }
+        : this.loadLocalBestScore();
       try {
-        const result = await leaderboards.getLeaderboardEntries(leaderboardName, {
+        if (currentScore > 0) await this.setLeaderboardScore(leaderboardName, currentScore).catch(() => false);
+        const result = await this.getLeaderboardEntries(leaderboardName, {
           quantityTop: 10,
           includeUser: true,
           quantityAround: 2
         });
+        if (!result) throw new Error('Leaderboard API unavailable');
         this.game.setLeaderboardEntries(this.mapLeaderboardEntries(result));
       } catch (error) {
         this.game.setLeaderboardError(this.t('leaderboard.platformOnly'));
-      }
-    },
-
-    async openXpLeaderboard(xp) {
-      if (!this.game) return;
-      const value = Math.max(0, Math.floor(xp || 0));
-      const leaderboards = await this.getLeaderboards();
-      if (!leaderboards || !leaderboards.getLeaderboardEntries) {
-        this.game.setXpLeaderboardEntries([{
-          rank: 1,
-          name: this.game.playerName || this.t('leaderboard.player'),
-          score: value,
-          isPlayer: true
-        }]);
-        return;
-      }
-      try {
-        if (leaderboards.setLeaderboardScore && value > 0) {
-          await leaderboards.setLeaderboardScore(this.xpLeaderboardName, value).catch(() => {});
-        }
-        const result = await leaderboards.getLeaderboardEntries(this.xpLeaderboardName, {
-          quantityTop: 30,
-          includeUser: true,
-          quantityAround: 1
-        });
-        this.game.setXpLeaderboardEntries(this.mapLeaderboardEntries(result));
-      } catch (error) {
-        this.game.setXpLeaderboardError(this.t('leaderboard.platformOnly'));
       }
     },
 
@@ -793,25 +770,14 @@
       const value = Math.max(0, Math.floor(score || 0));
       const submitValue = starsMode ? value : Math.max(value, this.loadLocalBestScore());
       const leaderboardName = starsMode ? this.starsLeaderboardName : this.leaderboardName;
-      const leaderboards = await this.getLeaderboards();
-      if (!leaderboards || !leaderboards.getLeaderboardEntries) {
-        this.game.setGameOverLeaderboardEntries([{
-          rank: 1,
-          name: this.game.playerName || this.t('leaderboard.player'),
-          score: submitValue,
-          isPlayer: true
-        }]);
-        return;
-      }
       try {
-        if (leaderboards.setLeaderboardScore) {
-          await leaderboards.setLeaderboardScore(leaderboardName, submitValue).catch(() => {});
-        }
-        const result = await leaderboards.getLeaderboardEntries(leaderboardName, {
+        if (submitValue > 0) await this.setLeaderboardScore(leaderboardName, submitValue).catch(() => false);
+        const result = await this.getLeaderboardEntries(leaderboardName, {
           quantityTop: starsMode ? 1 : 5,
           includeUser: true,
           quantityAround: starsMode ? 1 : 2
         });
+        if (!result) throw new Error('Leaderboard API unavailable');
         this.game.setGameOverLeaderboardEntries(this.mapLeaderboardEntries(result));
       } catch (error) {
         this.game.setGameOverLeaderboardError(this.t('leaderboard.platformOnly'));

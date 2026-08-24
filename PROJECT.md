@@ -95,7 +95,7 @@ HTML5 Canvas match-3 игра Milevora team для браузерных игро
 
 - рабочий адаптер: `platforms/yandex/`;
 - облачные сохранения, реклама, покупки, профиль и лидерборды подключены;
-- лидерборды: `CrystalTreasuresMatch3`, `CrystalTreasuresStars`, `CrystalTreasuresXP`;
+- лидерборды: `CrystalTreasuresMatch3` для бесконечного режима и `CrystalTreasuresStars` для общего количества звёзд; XP-лидерборд отключён, общий опыт продолжает сохраняться и развивать звание игрока;
 - товары: `coins_10000`, `coins_25000`, `coins_60000`, `coins_150000`.
 
 Контрольная версия до мультиплатформенной переработки:
