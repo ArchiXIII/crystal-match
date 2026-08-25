@@ -59,8 +59,18 @@
         Math.min(normalScoreX, this.width * 0.58 - pillW / 2)
       ));
       const scoreX = stackedHud ? stackedScoreX : normalScoreX;
+      const fadeProfile = tight && stackedHud;
+      const profileFadeRight = scoreX;
+      const profileFadeLeft = Math.max(l.sidePad + 74, profileFadeRight - 76);
 
-      ctx.fillStyle = '#fff7df';
+      if (fadeProfile) {
+        const nameFade = ctx.createLinearGradient(profileFadeLeft, 0, profileFadeRight, 0);
+        nameFade.addColorStop(0, '#fff7df');
+        nameFade.addColorStop(1, 'rgba(255, 247, 223, 0)');
+        ctx.fillStyle = nameFade;
+      } else {
+        ctx.fillStyle = '#fff7df';
+      }
       ctx.font = '700 ' + (compact ? (tight ? 17 : 15) : 18) + 'px CrystalUI, Arial';
       ctx.textBaseline = 'middle';
       const profileTextX = l.sidePad + (tight ? 14 : 18);
@@ -72,7 +82,14 @@
         h: tight ? 48 : 56
       };
       ctx.fillText(playerName, profileTextX, avatarY - (compact ? (tight ? 11 : 12) : 13), compact ? (tight ? 112 : 108) : 154);
-      ctx.fillStyle = '#f6bd4c';
+      if (fadeProfile) {
+        const rankFade = ctx.createLinearGradient(profileFadeLeft, 0, profileFadeRight, 0);
+        rankFade.addColorStop(0, '#f6bd4c');
+        rankFade.addColorStop(1, 'rgba(246, 189, 76, 0)');
+        ctx.fillStyle = rankFade;
+      } else {
+        ctx.fillStyle = '#f6bd4c';
+      }
       ctx.font = '800 ' + (compact ? (tight ? 12 : 11) : 14) + 'px CrystalUI, Arial';
       const rankInfo = this.game.rankInfo ? this.game.rankInfo() : { title: this.t('player.rank'), progress: 0 };
       const rankProgressKey = String(rankInfo.level || 0);
@@ -91,29 +108,28 @@
       const rankBarX = profileTextX;
       const rankBarY = avatarY + (compact ? (tight ? 12 : 15) : 18);
       this.roundRect(ctx, rankBarX, rankBarY, rankBarW, rankBarH, 3);
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      if (fadeProfile) {
+        const trackFade = ctx.createLinearGradient(rankBarX, 0, rankBarX + rankBarW, 0);
+        trackFade.addColorStop(0, 'rgba(255,255,255,0.12)');
+        trackFade.addColorStop(0.68, 'rgba(255,255,255,0.12)');
+        trackFade.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = trackFade;
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      }
       ctx.fill();
       this.roundRect(ctx, rankBarX, rankBarY, rankBarW * Math.max(0, Math.min(1, this.rankProgressDisplay || 0)), rankBarH, 3);
       const rankGrd = ctx.createLinearGradient(rankBarX, rankBarY, rankBarX + rankBarW, rankBarY);
       rankGrd.addColorStop(0, '#f6bd4c');
       rankGrd.addColorStop(0.58, '#ffe590');
-      rankGrd.addColorStop(1, '#7af2ff');
+      rankGrd.addColorStop(fadeProfile ? 0.78 : 1, '#7af2ff');
+      if (fadeProfile) rankGrd.addColorStop(1, 'rgba(122, 242, 255, 0)');
       ctx.fillStyle = rankGrd;
       ctx.shadowColor = 'rgba(246, 189, 76, 0.58)';
       ctx.shadowBlur = this.shadow(8);
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      if (tight && stackedHud) {
-        const fadeRight = scoreX + 8;
-        const fadeLeft = Math.max(profileTextX + 60, fadeRight - 76);
-        const fade = ctx.createLinearGradient(fadeLeft, 0, fadeRight, 0);
-        fade.addColorStop(0, 'rgba(16, 13, 28, 0)');
-        fade.addColorStop(0.72, 'rgba(16, 13, 28, 0.88)');
-        fade.addColorStop(1, 'rgba(16, 13, 28, 0.98)');
-        ctx.fillStyle = fade;
-        ctx.fillRect(fadeLeft, y + 3, Math.max(0, fadeRight - fadeLeft), l.hudHeight - 6);
-      }
       const stackedScoreCenterX = scoreX + pillW / 2;
       const activeEndlessRound = this.game.gameMode === 'endless' &&
         !this.game.menuOpen &&
