@@ -51,7 +51,7 @@
       const rewardTextGap = tight ? 4 : 5;
       const rewardTextSize = l.desktopGoal ? 16 : (compact ? (tight ? 13 : 12) : 14);
 
-      this.roundPanel(ctx, x, y, w, h, 16, 0.76);
+      this.roundPanel(ctx, x, y, w, h, tight ? l.topPanelRadius : 16, 0.76);
       ctx.save();
       ctx.fillStyle = '#fff4d6';
       ctx.textBaseline = 'middle';
@@ -188,8 +188,9 @@
       this.endlessBonusPanelRect = { x, y, w, h };
 
       ctx.save();
-      this.roundPanel(ctx, x, y, w, h, Math.min(16, h * 0.28), 0.76);
-      this.roundRect(ctx, x, y, w, h, Math.min(16, h * 0.28));
+      const radius = tight ? l.topPanelRadius : Math.min(16, h * 0.28);
+      this.roundPanel(ctx, x, y, w, h, radius, 0.76);
+      this.roundRect(ctx, x, y, w, h, radius);
       ctx.strokeStyle = info.ready ? 'rgba(255, 229, 144, 0.76)' : 'rgba(255, 229, 144, 0.34)';
       ctx.lineWidth = info.ready ? 1.6 : 1.1;
       if (info.ready) {
@@ -384,7 +385,7 @@
       this.exitEndlessRoundRect = { x, y, w, h };
       ctx.save();
       ctx.shadowBlur = 0;
-      this.roundRect(ctx, x, y, w, h, Math.min(15, h / 2));
+      this.roundRect(ctx, x, y, w, h, tight ? l.topPanelRadius : Math.min(15, h / 2));
       const grd = ctx.createLinearGradient(x, y, x, y + h);
       grd.addColorStop(0, 'rgba(78, 47, 96, 0.58)');
       grd.addColorStop(0.55, 'rgba(58, 40, 78, 0.54)');

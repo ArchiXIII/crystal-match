@@ -289,6 +289,7 @@
       const hudHeight = tightPortrait
         ? Math.min(64, Math.max(50, this.height * 0.062))
         : Math.min(76, Math.max(58, this.height * 0.088));
+      const topPanelRadius = tightPortrait ? Math.min(20, hudHeight * 0.38) : 0;
       const boosterHeight = tightPortrait
         ? Math.min(66, Math.max(54, this.height * 0.064))
         : Math.min(96, Math.max(74, this.height * 0.12));
@@ -331,6 +332,7 @@
           boardWidth,
           boardHeight,
           boosterY: boardY + boardHeight,
+          topPanelRadius,
           tightPortrait
         };
       }
@@ -338,7 +340,7 @@
       const sideGoalWidth = Math.min(236, Math.max(188, this.width * 0.22));
       const sideGoalHeight = Math.min(118, Math.max(94, this.height * 0.13));
       const topGoalHeight = tightPortrait
-        ? Math.min(54, Math.max(44, this.height * 0.052))
+        ? hudHeight
         : Math.min(82, Math.max(72, this.height * 0.095));
       const sideGoalMinWidth = Number.isFinite(platformLayout.sideGoalMinWidth)
         ? platformLayout.sideGoalMinWidth
@@ -353,7 +355,7 @@
       const makeBoard = (sideGoal) => {
         const goalHeight = sideGoal ? sideGoalHeight : topGoalHeight;
         const endlessBonusHeight = showEndlessMoveBonus
-          ? (sideGoal ? Math.min(72, Math.max(62, this.height * 0.08)) : (tightPortrait ? 54 : 64))
+          ? (sideGoal ? Math.min(72, Math.max(62, this.height * 0.08)) : (tightPortrait ? goalHeight : 64))
           : 0;
         const reservedSideWidth = sideGoal && reserveSideGoalColumn ? sideGoalWidth + goalGap : 0;
         const availableBoardWidth = Math.max(1, contentWidth - reservedSideWidth);
@@ -438,6 +440,7 @@
         verticalGap: board.verticalGap,
         mobileLevelExitRow,
         exitRoundY: mobileLevelExitRow ? this.height - safeBottom - boosterHeight : 0,
+        topPanelRadius,
         tightPortrait
       };
     }

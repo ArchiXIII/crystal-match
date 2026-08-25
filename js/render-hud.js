@@ -32,10 +32,33 @@
       const l = this.layout;
       const y = l.safeTop;
       const tight = !!l.tightPortrait;
-      this.roundPanel(ctx, l.sidePad, y, this.width - l.sidePad * 2, l.hudHeight, tight ? 20 : 26, 0.72);
+      this.roundPanel(ctx, l.sidePad, y, this.width - l.sidePad * 2, l.hudHeight, tight ? l.topPanelRadius : 26, 0.72);
 
       const compact = this.width < 420;
       const avatarY = y + l.hudHeight * 0.5;
+      const small = compact ? (tight ? 32 : 30) : 38;
+      const pillH = compact ? (tight ? 28 : 30) : 38;
+      const shownCoins = Math.min(this.game.coins, Math.floor(this.game.displayCoins));
+      const coinText = this.formatCoins(shownCoins);
+      const plusSize = 26;
+      const coinTextBase = compact ? 13 : 17;
+      ctx.font = '700 ' + coinTextBase + 'px CrystalUI, Arial';
+      const minPillW = compact ? (tight ? 118 : 112) : 146;
+      const maxPillW = Math.min(compact ? 154 : 196, this.width * (tight ? 0.43 : 0.35));
+      const pillW = Math.round(Math.max(minPillW, Math.min(maxPillW, ctx.measureText(coinText).width + plusSize + (compact ? 67 : 84))));
+      const buttonInset = tight ? 8 : 14;
+      const clusterGap = compact ? 6 : 8;
+      const showLeaderboardButton = this.game.platformFeatures.leaderboardButton !== false;
+      const clusterButtonCount = showLeaderboardButton ? 2 : 1;
+      const normalScoreX = this.width - l.sidePad - buttonInset - pillW - small * clusterButtonCount - clusterGap * clusterButtonCount;
+      const normalProfileRight = l.sidePad + (tight ? 14 : 18) + (compact ? (tight ? 124 : 116) : 154);
+      const normalRightClusterLeft = normalScoreX - 12;
+      const stackedHud = this.width < 560 || normalRightClusterLeft - normalProfileRight < 96;
+      const stackedScoreX = Math.round(Math.max(
+        (this.width - pillW) / 2,
+        Math.min(normalScoreX, this.width * 0.58 - pillW / 2)
+      ));
+      const scoreX = stackedHud ? stackedScoreX : normalScoreX;
 
       ctx.fillStyle = '#fff7df';
       ctx.font = '700 ' + (compact ? (tight ? 17 : 15) : 18) + 'px CrystalUI, Arial';
@@ -81,29 +104,16 @@
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      const small = compact ? (tight ? 32 : 30) : 38;
-      const pillH = compact ? (tight ? 28 : 30) : 38;
-      const shownCoins = Math.min(this.game.coins, Math.floor(this.game.displayCoins));
-      const coinText = this.formatCoins(shownCoins);
-      const plusSize = 26;
-      const coinTextBase = compact ? 13 : 17;
-      ctx.font = '700 ' + coinTextBase + 'px CrystalUI, Arial';
-      const minPillW = compact ? (tight ? 118 : 112) : 146;
-      const maxPillW = Math.min(compact ? 154 : 196, this.width * (tight ? 0.43 : 0.35));
-      const pillW = Math.round(Math.max(minPillW, Math.min(maxPillW, ctx.measureText(coinText).width + plusSize + (compact ? 67 : 84))));
-      const buttonInset = tight ? 8 : 14;
-      const clusterGap = compact ? 6 : 8;
-      const showLeaderboardButton = this.game.platformFeatures.leaderboardButton !== false;
-      const clusterButtonCount = showLeaderboardButton ? 2 : 1;
-      const normalScoreX = this.width - l.sidePad - buttonInset - pillW - small * clusterButtonCount - clusterGap * clusterButtonCount;
-      const normalProfileRight = profileTextX + (compact ? (tight ? 124 : 116) : 154);
-      const normalRightClusterLeft = normalScoreX - 12;
-      const stackedHud = this.width < 560 || normalRightClusterLeft - normalProfileRight < 96;
-      const stackedScoreX = Math.round(Math.max(
-        (this.width - pillW) / 2,
-        Math.min(normalScoreX, this.width * 0.58 - pillW / 2)
-      ));
-      const scoreX = stackedHud ? stackedScoreX : normalScoreX;
+      if (tight && stackedHud) {
+        const fadeRight = scoreX + 8;
+        const fadeLeft = Math.max(profileTextX + 60, fadeRight - 76);
+        const fade = ctx.createLinearGradient(fadeLeft, 0, fadeRight, 0);
+        fade.addColorStop(0, 'rgba(16, 13, 28, 0)');
+        fade.addColorStop(0.72, 'rgba(16, 13, 28, 0.88)');
+        fade.addColorStop(1, 'rgba(16, 13, 28, 0.98)');
+        ctx.fillStyle = fade;
+        ctx.fillRect(fadeLeft, y + 3, Math.max(0, fadeRight - fadeLeft), l.hudHeight - 6);
+      }
       const stackedScoreCenterX = scoreX + pillW / 2;
       const activeEndlessRound = this.game.gameMode === 'endless' &&
         !this.game.menuOpen &&
