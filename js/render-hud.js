@@ -60,8 +60,8 @@
       ));
       const scoreX = stackedHud ? stackedScoreX : normalScoreX;
       const fadeProfile = tight && stackedHud;
-      const profileFadeRight = scoreX;
-      const profileFadeLeft = Math.max(l.sidePad + 74, profileFadeRight - 76);
+      const profileFadeRight = scoreX + 6;
+      const profileFadeLeft = Math.max(l.sidePad + 80, profileFadeRight - 70);
 
       if (fadeProfile) {
         const nameFade = ctx.createLinearGradient(profileFadeLeft, 0, profileFadeRight, 0);
@@ -74,6 +74,7 @@
       ctx.font = '700 ' + (compact ? (tight ? 17 : 15) : 18) + 'px CrystalUI, Arial';
       ctx.textBaseline = 'middle';
       const profileTextX = l.sidePad + (tight ? 14 : 18);
+      const profileTextMaxWidth = Math.max(124, profileFadeRight - profileTextX + 10);
       const playerName = this.game.playerName || this.t('leaderboard.player');
       this.profileButtonRect = {
         x: profileTextX - 8,
@@ -81,7 +82,12 @@
         w: compact ? (tight ? 132 : 126) : 170,
         h: tight ? 48 : 56
       };
-      ctx.fillText(playerName, profileTextX, avatarY - (compact ? (tight ? 11 : 12) : 13), compact ? (tight ? 112 : 108) : 154);
+      const playerNameY = avatarY - (compact ? (tight ? 11 : 12) : 13);
+      if (fadeProfile) {
+        ctx.fillText(playerName, profileTextX, playerNameY, profileTextMaxWidth);
+      } else {
+        ctx.fillText(playerName, profileTextX, playerNameY, compact ? (tight ? 112 : 108) : 154);
+      }
       if (fadeProfile) {
         const rankFade = ctx.createLinearGradient(profileFadeLeft, 0, profileFadeRight, 0);
         rankFade.addColorStop(0, '#f6bd4c');
@@ -102,7 +108,12 @@
           this.rankProgressDisplay = rankInfo.progress || 0;
         }
       }
-      ctx.fillText(rankInfo.title, profileTextX, avatarY + (compact ? (tight ? 5 : 5) : 6));
+      const rankTitleY = avatarY + (compact ? (tight ? 5 : 5) : 6);
+      if (fadeProfile) {
+        ctx.fillText(rankInfo.title, profileTextX, rankTitleY, profileTextMaxWidth);
+      } else {
+        ctx.fillText(rankInfo.title, profileTextX, rankTitleY);
+      }
       const rankBarW = compact ? (tight ? 86 : 94) : 126;
       const rankBarH = tight ? 3 : 4;
       const rankBarX = profileTextX;

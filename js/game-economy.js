@@ -316,8 +316,8 @@
         ready,
         pending: !!this.endlessMoveBonusPending,
         adAvailable,
-        reward: 250,
-        adReward: 1000
+        reward: 500,
+        adReward: 2000
       };
 
   };
