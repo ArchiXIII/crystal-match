@@ -3,6 +3,9 @@
 
   const Adapter = {
     name: 'local',
+    features: {
+      endlessMoveBonus: true
+    },
 
     initPlatform() {
       return Promise.resolve();
@@ -18,6 +21,14 @@
 
     isServerBackedPlayer() {
       return false;
+    },
+
+    isRewardedAdAvailable() {
+      return true;
+    },
+
+    showRewardedAd() {
+      return Promise.resolve(true);
     }
   };
 

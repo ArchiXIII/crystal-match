@@ -296,6 +296,67 @@
 
   };
 
+  Game.prototype.endlessMoveBonusInfo = function () {
+      const target = 30;
+      const moves = Math.max(0, Math.min(target, Math.floor(this.endlessMoveBonusMoves || 0)));
+      const enabled = this.platformFeatures.endlessMoveBonus === true && this.gameMode === 'endless';
+      const ready = enabled && moves >= target;
+      let adAvailable = ready && !this.endlessMoveBonusPending && !!this.showRewardedAdExternal;
+      if (adAvailable && this.isRewardedAdAvailableExternal) {
+        try {
+          adAvailable = this.isRewardedAdAvailableExternal() !== false;
+        } catch (_) {
+          adAvailable = false;
+        }
+      }
+      return {
+        enabled,
+        target,
+        moves,
+        ready,
+        pending: !!this.endlessMoveBonusPending,
+        adAvailable,
+        reward: 250,
+        adReward: 1000
+      };
+
+  };
+
+  Game.prototype.addEndlessMoveBonusMove = function () {
+      if (this.platformFeatures.endlessMoveBonus !== true || this.gameMode !== 'endless' || this.menuOpen || this.gameOver) return false;
+      this.endlessMoveBonusMoves = Math.min(30, Math.max(0, Math.floor(this.endlessMoveBonusMoves || 0)) + 1);
+      return true;
+
+  };
+
+  Game.prototype.claimEndlessMoveBonus = function (source) {
+      const info = this.endlessMoveBonusInfo();
+      if (!info.ready || info.pending) return false;
+      this.endlessMoveBonusMoves = 0;
+      this.addCoins(info.reward, source || null, true, { immediate: true });
+      return true;
+
+  };
+
+  Game.prototype.claimEndlessMoveBonusAd = function (source) {
+      const info = this.endlessMoveBonusInfo();
+      if (!info.ready || !info.adAvailable || info.pending) return false;
+      this.endlessMoveBonusPending = true;
+      Promise.resolve()
+        .then(() => this.showRewardedAdExternal())
+        .then((rewarded) => {
+          if (!rewarded) return;
+          this.endlessMoveBonusMoves = 0;
+          this.addCoins(info.adReward, source || null, true, { immediate: true });
+        })
+        .catch(() => false)
+        .finally(() => {
+          this.endlessMoveBonusPending = false;
+        });
+      return true;
+
+  };
+
   Game.prototype.addCoins = function (amount, source, countAsEarned = true, options) {
       if (!Number.isFinite(amount) || amount <= 0) return;
       const coins = Math.floor(amount);

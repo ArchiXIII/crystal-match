@@ -24,6 +24,7 @@
         xpLeaderboard: true,
         gameOverLeaderboard: true,
         endlessGameOverLeaderboard: true,
+        endlessMoveBonus: false,
         gameOverXpEarned: false,
         compactGameOver: false,
         adsEnabled: true,
@@ -167,6 +168,8 @@
       this.coinShopRewardSource = null;
       this.coinShopPurchaseSources = {};
       this.adBonusPending = false;
+      this.endlessMoveBonusMoves = 0;
+      this.endlessMoveBonusPending = false;
       this.interstitialPending = false;
       this.menuOpen = true;
       this.needsNewRound = true;
@@ -639,6 +642,8 @@
       this.needsNewRound = false;
       this.finishedAt = null;
       this.roundEarnedCoins = 0;
+      this.endlessMoveBonusMoves = 0;
+      this.endlessMoveBonusPending = false;
       this.pendingLevelReward = 0;
       this.levelRewardDoubleAmount = 0;
       this.levelRewardDoubleEligible = false;
@@ -1080,6 +1085,7 @@
 
       this.combo = 1;
       this.turns += 1;
+      if (this.addEndlessMoveBonusMove) this.addEndlessMoveBonusMove();
       this.consumeLevelMove();
       this.noMoves = false;
       this.hintMove = null;
@@ -1148,6 +1154,7 @@
           this.pendingRevert = null;
           this.combo = 0;
           this.turns += 1;
+          if (this.addEndlessMoveBonusMove) this.addEndlessMoveBonusMove();
           this.consumeLevelMove();
           this.clearMatches(matches);
         } else if (this.pendingRevert) {
@@ -1639,6 +1646,7 @@
       this.selected = null;
       this.combo = 1;
       this.turns += 1;
+      if (this.addEndlessMoveBonusMove) this.addEndlessMoveBonusMove();
       this.consumeLevelMove();
       this.addGoalProgress('useBooster', 1);
       this.clearManualSet(clearSet, booster.id.toUpperCase());

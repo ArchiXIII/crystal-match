@@ -290,6 +290,22 @@
         this.reset();
         return;
       }
+      const endlessBonusClaim = this.renderer.pointToEndlessBonusClaim && this.renderer.pointToEndlessBonusClaim(event.clientX, event.clientY);
+      if (endlessBonusClaim) {
+        const source = { kind: 'screen', x: endlessBonusClaim.x + endlessBonusClaim.w / 2, y: endlessBonusClaim.y + endlessBonusClaim.h / 2 };
+        const claimed = this.game.claimEndlessMoveBonus && this.game.claimEndlessMoveBonus(source);
+        this.game.playSound(claimed ? 'button' : 'swapError');
+        this.reset();
+        return;
+      }
+      const endlessBonusAd = this.renderer.pointToEndlessBonusAd && this.renderer.pointToEndlessBonusAd(event.clientX, event.clientY);
+      if (endlessBonusAd) {
+        const source = { kind: 'screen', x: endlessBonusAd.x + endlessBonusAd.w / 2, y: endlessBonusAd.y + endlessBonusAd.h / 2 };
+        const claimed = this.game.claimEndlessMoveBonusAd && this.game.claimEndlessMoveBonusAd(source);
+        this.game.playSound(claimed ? 'button' : 'swapError');
+        this.reset();
+        return;
+      }
       const exitEndlessRound = this.renderer.pointToExitEndlessRoundButton && this.renderer.pointToExitEndlessRoundButton(event.clientX, event.clientY);
       if (exitEndlessRound) {
         const opened = this.game.requestExitRoundConfirm && this.game.requestExitRoundConfirm();

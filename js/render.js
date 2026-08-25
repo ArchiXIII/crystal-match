@@ -61,6 +61,9 @@
       this.layoutBoardKey = '';
       this.boosterRects = [];
       this.boosterShopRects = [];
+      this.endlessBonusPanelRect = null;
+      this.endlessBonusClaimRect = null;
+      this.endlessBonusAdRect = null;
       this.endRoundRect = null;
       this.playButtonRect = null;
       this.recordButtonRect = null;
@@ -345,9 +348,13 @@
         : 0;
       const reserveSideGoalColumn = platformLayout.reserveSideGoalColumn === true;
       const canTrySideGoal = this.width >= sideGoalMinWidth && this.height >= sideGoalMinHeight;
+      const showEndlessMoveBonus = this.game.platformFeatures.endlessMoveBonus === true && this.game.gameMode === 'endless';
 
       const makeBoard = (sideGoal) => {
         const goalHeight = sideGoal ? sideGoalHeight : topGoalHeight;
+        const endlessBonusHeight = showEndlessMoveBonus
+          ? (sideGoal ? Math.min(72, Math.max(62, this.height * 0.08)) : (tightPortrait ? 54 : 64))
+          : 0;
         const reservedSideWidth = sideGoal && reserveSideGoalColumn ? sideGoalWidth + goalGap : 0;
         const availableBoardWidth = Math.max(1, contentWidth - reservedSideWidth);
         const verticalGap = tightPortrait ? Math.max(7, Math.min(10, this.height * 0.01)) : 12;
@@ -355,7 +362,9 @@
           this.game.platformFeatures.levelExitButton === true &&
           this.game.gameMode === 'level' &&
           !sideGoal;
-        const boardYBase = safeTop + hudHeight + (sideGoal ? verticalGap : goalHeight + verticalGap * 2);
+        const boardYBase = safeTop + hudHeight + (sideGoal
+          ? verticalGap
+          : goalHeight + verticalGap * 2 + endlessBonusHeight + (endlessBonusHeight ? verticalGap : 0));
         const boosterTop = this.height - safeBottom - boosterHeight -
           (mobileLevelExitRow ? boosterHeight + verticalGap : 0);
         const availableBoardHeight = Math.max(1, boosterTop - boardYBase - verticalGap);
@@ -373,7 +382,7 @@
           : Math.round(centeredBoardX);
         const slack = Math.max(0, availableBoardHeight - boardHeight);
         const boardY = Math.round(boardYBase + slack * 0.5);
-        return { goalHeight, cell, boardWidth, boardHeight, boardX, boardY, verticalGap, mobileLevelExitRow };
+        return { goalHeight, endlessBonusHeight, cell, boardWidth, boardHeight, boardX, boardY, verticalGap, mobileLevelExitRow };
       };
 
       let board = makeBoard(canTrySideGoal);
@@ -417,6 +426,7 @@
         goalHeight,
         goalWidth,
         goalY,
+        endlessBonusHeight: board.endlessBonusHeight,
         boosterHeight,
         sidePad,
         cell: board.cell,
@@ -425,6 +435,7 @@
         boardWidth: board.boardWidth,
         boardHeight: board.boardHeight,
         boosterY,
+        verticalGap: board.verticalGap,
         mobileLevelExitRow,
         exitRoundY: mobileLevelExitRow ? this.height - safeBottom - boosterHeight : 0,
         tightPortrait
@@ -445,6 +456,7 @@
       this.drawHud(ctx);
       if (!this.game.menuOpen) {
         this.drawGoal(ctx);
+        this.drawEndlessMoveBonus(ctx);
         this.drawExitEndlessRoundButton(ctx);
       }
       this.drawBoard(ctx);
@@ -458,6 +470,9 @@
       } else {
         this.endRoundRect = null;
         this.exitEndlessRoundRect = null;
+        this.endlessBonusPanelRect = null;
+        this.endlessBonusClaimRect = null;
+        this.endlessBonusAdRect = null;
         this.boosterRects = [];
         this.boosterShopRects = [];
       }

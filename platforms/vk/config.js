@@ -18,6 +18,7 @@
       sideGoalMinHeight: 460,
       desktopSidePadMax: 24,
       reserveSideGoalColumn: true,
+      attachBoostersToBoard: true,
       mobileLevelExitRow: true
     },
     features: {
@@ -27,6 +28,7 @@
       xpLeaderboard: false,
       gameOverLeaderboard: true,
       endlessGameOverLeaderboard: true,
+      endlessMoveBonus: true,
       mainMenuBeforeInterstitial: true,
       levelRewardDoubleAd: true,
       paidCoinPacks: true,

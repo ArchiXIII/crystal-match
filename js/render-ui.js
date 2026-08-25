@@ -945,6 +945,22 @@
       const button = this.exitEndlessRoundRect;
       return x >= button.x && x <= button.x + button.w && y >= button.y && y <= button.y + button.h ? button : null;
     };
+  Renderer.prototype.pointToEndlessBonusClaim = function (clientX, clientY) {
+      if (!this.endlessBonusClaimRect) return null;
+      const rect = this.canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const button = this.endlessBonusClaimRect;
+      return x >= button.x && x <= button.x + button.w && y >= button.y && y <= button.y + button.h ? button : null;
+    };
+  Renderer.prototype.pointToEndlessBonusAd = function (clientX, clientY) {
+      if (!this.endlessBonusAdRect) return null;
+      const rect = this.canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const button = this.endlessBonusAdRect;
+      return x >= button.x && x <= button.x + button.w && y >= button.y && y <= button.y + button.h ? button : null;
+    };
   Renderer.prototype.pointToMainMenuButton = function (clientX, clientY) {
       if (!this.mainMenuButtonRect) return null;
       const rect = this.canvas.getBoundingClientRect();

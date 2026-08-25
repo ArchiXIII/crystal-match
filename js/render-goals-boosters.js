@@ -164,6 +164,175 @@
       ctx.restore();
     };
 
+  Renderer.prototype.shouldShowEndlessMoveBonus = function () {
+      return this.game.platformFeatures.endlessMoveBonus === true &&
+        this.game.gameMode === 'endless' &&
+        !this.game.menuOpen &&
+        !this.game.gameOver &&
+        !!this.game.currentGoal;
+    };
+
+  Renderer.prototype.drawEndlessMoveBonus = function (ctx) {
+      this.endlessBonusPanelRect = null;
+      this.endlessBonusClaimRect = null;
+      this.endlessBonusAdRect = null;
+      if (!this.shouldShowEndlessMoveBonus() || !this.game.endlessMoveBonusInfo) return;
+      const info = this.game.endlessMoveBonusInfo();
+      const l = this.layout;
+      const tight = !!l.tightPortrait;
+      const gap = l.verticalGap || Math.max(7, Math.min(12, this.height * 0.01));
+      const h = Math.max(48, l.endlessBonusHeight || (tight ? 54 : 64));
+      const x = l.desktopGoal ? l.goalX : l.boardX - 4;
+      const y = l.goalY + l.goalHeight + gap;
+      const w = l.desktopGoal ? l.goalWidth : l.boardWidth + 8;
+      this.endlessBonusPanelRect = { x, y, w, h };
+
+      ctx.save();
+      this.roundPanel(ctx, x, y, w, h, Math.min(16, h * 0.28), 0.76);
+      this.roundRect(ctx, x, y, w, h, Math.min(16, h * 0.28));
+      ctx.strokeStyle = info.ready ? 'rgba(255, 229, 144, 0.76)' : 'rgba(255, 229, 144, 0.34)';
+      ctx.lineWidth = info.ready ? 1.6 : 1.1;
+      if (info.ready) {
+        ctx.shadowColor = 'rgba(246, 189, 76, 0.48)';
+        ctx.shadowBlur = this.shadow(14);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      if (info.ready) {
+        this.drawEndlessMoveBonusButtons(ctx, info, x, y, w, h, tight, l.desktopGoal);
+        ctx.restore();
+        return;
+      }
+
+      const pad = tight ? 12 : 14;
+      const titleY = y + (tight ? 18 : 21);
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#f6bd4c';
+      ctx.textAlign = 'left';
+      ctx.font = '800 ' + (tight ? 13 : 14) + 'px CrystalUI, Arial';
+      ctx.fillText(this.t('endlessBonus.title'), x + pad, titleY);
+      ctx.fillStyle = '#fff4d6';
+      ctx.textAlign = 'right';
+      ctx.font = '800 ' + (tight ? 12 : 13) + 'px CrystalUI, Arial';
+      ctx.fillText(this.t('endlessBonus.moves', { moves: info.moves, target: info.target }), x + w - pad, titleY);
+
+      const barX = x + pad;
+      const barY = y + h - (tight ? 13 : 16);
+      const barW = w - pad * 2;
+      const barH = tight ? 5 : 6;
+      this.roundRect(ctx, barX, barY, barW, barH, 4);
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fill();
+      if (info.moves > 0) {
+        this.roundRect(ctx, barX, barY, barW * info.moves / info.target, barH, 4);
+        const grd = ctx.createLinearGradient(barX, barY, barX + barW, barY);
+        grd.addColorStop(0, '#f6bd4c');
+        grd.addColorStop(0.58, '#7af2ff');
+        grd.addColorStop(1, '#d66aff');
+        ctx.fillStyle = grd;
+        ctx.shadowColor = 'rgba(246, 189, 76, 0.72)';
+        ctx.shadowBlur = this.shadow(10);
+        ctx.fill();
+      }
+      ctx.restore();
+    };
+
+  Renderer.prototype.drawEndlessMoveBonusButtons = function (ctx, info, x, y, w, h, tight, desktop) {
+      const outerPad = tight ? 4 : 5;
+      const gap = tight ? 5 : 7;
+      const buttonW = (w - outerPad * 2 - gap) / 2;
+      const buttonH = h - outerPad * 2;
+      const left = { x: x + outerPad, y: y + outerPad, w: buttonW, h: buttonH };
+      const right = { x: left.x + buttonW + gap, y: left.y, w: buttonW, h: buttonH };
+      if (!info.pending) this.endlessBonusClaimRect = left;
+      if (info.adAvailable && !info.pending) this.endlessBonusAdRect = right;
+
+      this.roundRect(ctx, left.x, left.y, left.w, left.h, Math.min(13, left.h * 0.28));
+      const freeGrd = ctx.createLinearGradient(left.x, left.y, left.x, left.y + left.h);
+      freeGrd.addColorStop(0, 'rgba(72, 48, 91, 0.92)');
+      freeGrd.addColorStop(1, 'rgba(29, 25, 43, 0.96)');
+      ctx.fillStyle = freeGrd;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 229, 144, 0.58)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      this.roundRect(ctx, right.x, right.y, right.w, right.h, Math.min(13, right.h * 0.28));
+      const adGrd = ctx.createLinearGradient(right.x, right.y, right.x, right.y + right.h);
+      adGrd.addColorStop(0, info.adAvailable ? '#fff0a8' : 'rgba(84, 76, 78, 0.84)');
+      adGrd.addColorStop(0.48, info.adAvailable ? '#f6bd4c' : 'rgba(72, 65, 70, 0.86)');
+      adGrd.addColorStop(1, info.adAvailable ? '#a85f12' : 'rgba(44, 41, 49, 0.9)');
+      ctx.fillStyle = adGrd;
+      ctx.fill();
+      ctx.strokeStyle = info.adAvailable ? 'rgba(255, 246, 198, 0.9)' : 'rgba(255,255,255,0.16)';
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
+
+      const topY = left.y + left.h * 0.34;
+      const valueY = left.y + left.h * 0.72;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = info.pending ? 'rgba(255, 244, 214, 0.5)' : '#fff4d6';
+      ctx.font = '800 ' + (desktop ? 13 : (tight ? 10 : 11)) + 'px CrystalUI, Arial';
+      ctx.fillText(this.t('endlessBonus.claim'), left.x + left.w / 2, topY, left.w - 12);
+      this.drawEndlessMoveBonusValue(ctx, left.x + left.w / 2, valueY, info.reward, tight, info.pending ? 0.48 : 1);
+
+      if (info.pending) {
+        ctx.fillStyle = '#2a1705';
+        ctx.font = '800 ' + (tight ? 9 : 10) + 'px CrystalUI, Arial';
+        ctx.fillText(this.t('endlessBonus.loading'), right.x + right.w / 2, right.y + right.h / 2, right.w - 12);
+      } else if (!info.adAvailable) {
+        ctx.fillStyle = 'rgba(255, 244, 214, 0.58)';
+        ctx.font = '800 ' + (tight ? 9 : 10) + 'px CrystalUI, Arial';
+        ctx.fillText(this.t('endlessBonus.noVideo'), right.x + right.w / 2, topY, right.w - 12);
+        this.drawEndlessMoveBonusValue(ctx, right.x + right.w / 2, valueY, info.adReward, tight, 0.48);
+      } else {
+        const markSize = tight ? 10 : 11;
+        const markX = right.x + right.w / 2 - (tight ? 12 : 14);
+        this.drawEndlessMoveBonusPlayMark(ctx, markX, topY, markSize);
+        ctx.fillStyle = '#2a1705';
+        ctx.textAlign = 'left';
+        ctx.font = '900 ' + (desktop ? 14 : (tight ? 11 : 12)) + 'px CrystalUI, Arial';
+        ctx.fillText('×4', markX + markSize + 5, topY + 1);
+        this.drawEndlessMoveBonusValue(ctx, right.x + right.w / 2, valueY, info.adReward, tight, 1, '#2a1705');
+      }
+    };
+
+  Renderer.prototype.drawEndlessMoveBonusValue = function (ctx, centerX, y, value, tight, alpha, color) {
+      const text = this.formatCoins(value);
+      const r = tight ? 6 : 7;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = '800 ' + (tight ? 12 : 13) + 'px CrystalUI, Arial';
+      const textW = ctx.measureText(text).width;
+      const groupW = r * 2 + 4 + textW;
+      const coinX = centerX - groupW / 2 + r;
+      this.drawCoin(ctx, coinX, y, r);
+      ctx.fillStyle = color || '#ffd77a';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, coinX + r + 4, y + 1);
+      ctx.restore();
+    };
+
+  Renderer.prototype.drawEndlessMoveBonusPlayMark = function (ctx, x, y, size) {
+      ctx.save();
+      ctx.strokeStyle = '#2a1705';
+      ctx.lineWidth = Math.max(1.2, size * 0.14);
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#2a1705';
+      ctx.beginPath();
+      ctx.moveTo(x - size * 0.24, y - size * 0.42);
+      ctx.lineTo(x + size * 0.48, y);
+      ctx.lineTo(x - size * 0.24, y + size * 0.42);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    };
+
   Renderer.prototype.shouldShowEndRoundButton = function () {
       return this.game.noMoves && !this.game.gameOver && (this.game.gameMode === 'level' || this.game.hasUsableBoosters());
     };
@@ -193,7 +362,9 @@
         h = Math.max(34, Math.min(42, l.goalHeight * 0.36));
         w = l.goalWidth;
         x = l.goalX;
-        y = l.goalY + l.goalHeight + gap;
+        y = this.endlessBonusPanelRect
+          ? this.endlessBonusPanelRect.y + this.endlessBonusPanelRect.h + gap
+          : l.goalY + l.goalHeight + gap;
         const maxY = l.boardY + l.boardHeight - h;
         if (y > maxY) y = maxY;
       } else if (l.mobileLevelExitRow && this.game.gameMode === 'level') {
