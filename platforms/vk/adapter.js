@@ -347,8 +347,9 @@
       this.rewardCoinSyncTimer = setTimeout(() => {
         this.rewardCoinSyncTimer = null;
         if (!this.game) return;
-        if (this.game.coinFlights && this.game.coinFlights.length) this.game.coinFlights.length = 0;
-        this.game.displayCoins = this.game.coins;
+        if (!this.game.coinFlights || !this.game.coinFlights.length) {
+          this.game.displayCoins = this.game.coins;
+        }
         this.restoreGameRuntime(true);
       }, 3200);
     },
@@ -845,8 +846,10 @@
       if (!this.game || !progress) return;
       if (Number.isFinite(progress.coins)) {
         const coins = Math.max(0, Math.floor(progress.coins));
+        const animatedCoins = !!(this.game.coinFlights && this.game.coinFlights.length);
+        const displayCoins = Math.max(0, Math.floor(Number(this.game.displayCoins) || 0));
         this.game.coins = coins;
-        this.game.displayCoins = coins;
+        this.game.displayCoins = animatedCoins ? Math.min(coins, displayCoins) : coins;
         this.game.coinSyncBase = coins;
         try {
           window.localStorage.setItem(this.game.coinStorageKey, String(coins));

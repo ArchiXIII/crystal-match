@@ -275,6 +275,55 @@
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'center';
       ctx.fillStyle = info.pending ? 'rgba(255, 244, 214, 0.5)' : '#fff4d6';
+      if (tight && !desktop) {
+        const claimText = this.t('endlessBonus.claim');
+        const claimSize = 11;
+        const valueSize = 12;
+        const valueR = 6;
+        const inlineGap = 7;
+        ctx.font = '800 ' + claimSize + 'px CrystalUI, Arial';
+        const claimW = ctx.measureText(claimText).width;
+        ctx.font = '800 ' + valueSize + 'px CrystalUI, Arial';
+        const rewardW = valueR * 2 + 4 + ctx.measureText(this.formatCoins(info.reward)).width;
+        const claimGroupX = left.x + (left.w - claimW - inlineGap - rewardW) / 2;
+        ctx.save();
+        ctx.globalAlpha = info.pending ? 0.48 : 1;
+        ctx.fillStyle = '#fff4d6';
+        ctx.textAlign = 'left';
+        ctx.font = '800 ' + claimSize + 'px CrystalUI, Arial';
+        ctx.fillText(claimText, claimGroupX, left.y + left.h / 2 + 1);
+        ctx.restore();
+        this.drawEndlessMoveBonusValue(ctx, claimGroupX + claimW + inlineGap + rewardW / 2, left.y + left.h / 2, info.reward, true, info.pending ? 0.48 : 1);
+
+        if (info.pending) {
+          ctx.fillStyle = '#2a1705';
+          ctx.textAlign = 'center';
+          ctx.font = '800 10px CrystalUI, Arial';
+          ctx.fillText(this.t('endlessBonus.loading'), right.x + right.w / 2, right.y + right.h / 2, right.w - 12);
+        } else if (!info.adAvailable) {
+          const noVideo = this.t('endlessBonus.noVideo');
+          ctx.fillStyle = 'rgba(255, 244, 214, 0.58)';
+          ctx.textAlign = 'center';
+          ctx.font = '800 9px CrystalUI, Arial';
+          ctx.fillText(noVideo, right.x + right.w / 2, right.y + right.h / 2, right.w - 12);
+        } else {
+          const markSize = 10;
+          ctx.font = '900 12px CrystalUI, Arial';
+          const multiplierW = ctx.measureText('×4').width;
+          ctx.font = '800 ' + valueSize + 'px CrystalUI, Arial';
+          const adRewardW = valueR * 2 + 4 + ctx.measureText(this.formatCoins(info.adReward)).width;
+          const adGap = 6;
+          const adGroupW = markSize * 2 + adGap + multiplierW + adGap + adRewardW;
+          const adGroupX = right.x + (right.w - adGroupW) / 2;
+          this.drawEndlessMoveBonusPlayMark(ctx, adGroupX + markSize, right.y + right.h / 2, markSize);
+          ctx.fillStyle = '#2a1705';
+          ctx.textAlign = 'left';
+          ctx.font = '900 12px CrystalUI, Arial';
+          ctx.fillText('×4', adGroupX + markSize * 2 + adGap, right.y + right.h / 2 + 1);
+          this.drawEndlessMoveBonusValue(ctx, adGroupX + markSize * 2 + adGap + multiplierW + adGap + adRewardW / 2, right.y + right.h / 2, info.adReward, true, 1, '#2a1705');
+        }
+        return;
+      }
       ctx.font = '800 ' + (desktop ? 13 : (tight ? 10 : 11)) + 'px CrystalUI, Arial';
       ctx.fillText(this.t('endlessBonus.claim'), left.x + left.w / 2, topY, left.w - 12);
       this.drawEndlessMoveBonusValue(ctx, left.x + left.w / 2, valueY, info.reward, tight, info.pending ? 0.48 : 1);
@@ -320,7 +369,7 @@
   Renderer.prototype.drawEndlessMoveBonusPlayMark = function (ctx, x, y, size) {
       ctx.save();
       ctx.strokeStyle = '#2a1705';
-      ctx.lineWidth = Math.max(1.2, size * 0.14);
+      ctx.lineWidth = Math.max(1.8, size * 0.19);
       ctx.beginPath();
       ctx.arc(x, y, size, 0, Math.PI * 2);
       ctx.stroke();
