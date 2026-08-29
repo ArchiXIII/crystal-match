@@ -996,6 +996,10 @@
     },
 
     showInterstitialAd() {
+      const platform = this.getVkPlatform();
+      if (platform !== 'desktop_web' && platform !== 'desktop_web_ok') {
+        return Promise.resolve(false);
+      }
       let storedAt = 0;
       try {
         storedAt = Math.max(0, Math.floor(Number(localStorage.getItem(this.interstitialLastShownKey)) || 0));
