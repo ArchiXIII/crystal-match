@@ -32,7 +32,7 @@
     lastStoredValue: '',
     cloudRetryDelay: 4000,
     adInFlight: false,
-    interstitialCooldownMs: 2 * 60 * 1000,
+    interstitialCooldownMs: 4 * 60 * 1000,
     interstitialLastShownKey: 'crystal-match-vk-interstitial-last-shown',
     lastInterstitialShownAt: 0,
     purchaseInFlight: false,
